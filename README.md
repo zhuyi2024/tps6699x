@@ -1,2 +1,2 @@
-# embedded-rust-template
-Template repository for Embedded Rust development
+# tps6699x
+Driver for TPS6699x series PD controller
