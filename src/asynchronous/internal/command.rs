@@ -6,8 +6,8 @@ use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::Tps6699x;
-use crate::command::{Command, ReturnValue};
-use crate::registers as regs;
+use crate::command::*;
+use crate::{registers as regs, PORT0};
 
 impl<const N: usize, B: I2c> Tps6699x<N, B> {
     /// Sends a command without verifying that it is valid
@@ -97,6 +97,20 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
 
         Ok(ret)
     }
+
+    /// Reset the controller
+    pub async fn reset(&mut self, delay: &mut impl DelayNs, args: &ResetArgs) -> Result<(), Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        let mut arg_bytes = [0u8; RESET_ARGS_LEN];
+
+        args.encode_into_slice(&mut arg_bytes).map_err(Error::Pd)?;
+        self.send_command_unchecked(PORT0, Command::Gaid, Some(&arg_bytes))
+            .await?;
+
+        delay.delay_ms(RESET_DELAY_MS).await;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -180,6 +194,53 @@ mod test {
             PORT0_ADDR1,
             Command::Invalid,
             Some(TEST_CMD_DATA.to_le_bytes()),
+        )
+        .await;
+    }
+
+    async fn test_reset(tps6699x: &mut Tps66994<Mock>, expected_addr: u8, expected_args: ResetArgs) {
+        let mut delay = Delay {};
+        let mut transactions = Vec::new();
+
+        let mut arg_bytes = [0u8; RESET_ARGS_LEN];
+        expected_args.encode_into_slice(&mut arg_bytes).unwrap();
+
+        transactions.push(create_register_write(expected_addr, REG_DATA1, arg_bytes));
+        transactions.push(create_register_write(
+            expected_addr,
+            0x08,
+            (Command::Gaid as u32).to_le_bytes(),
+        ));
+        tps6699x.bus.update_expectations(&transactions);
+
+        tps6699x.reset(&mut delay, &expected_args).await.unwrap();
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_reset_0() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        test_reset(
+            &mut tps6699x,
+            PORT0_ADDR0,
+            ResetArgs {
+                switch_banks: true,
+                copy_bank: false,
+            },
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_reset_1() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        test_reset(
+            &mut tps6699x,
+            PORT0_ADDR1,
+            ResetArgs {
+                switch_banks: true,
+                copy_bank: false,
+            },
         )
         .await;
     }

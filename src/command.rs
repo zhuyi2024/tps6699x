@@ -20,13 +20,16 @@ pub enum Command {
     Success = 0,
     /// Invalid Command
     Invalid = u32_from_str("!CMD"),
+    /// Reset command
+    Gaid = u32_from_str("GAID"),
 }
 
 impl Command {
     /// Returns the delay in microseconds before checking that the command was valid
     pub fn valid_check_delay_us(self) -> u32 {
         match self {
-            Command::Success | Command::Invalid => 0,
+            // Reset-type commands don't need to be checked
+            Command::Success | Command::Invalid | Command::Gaid => 0,
         }
     }
 }
@@ -105,5 +108,28 @@ impl Into<Result<(), PdError>> for ReturnValue {
             ReturnValue::Success => Ok(()),
             _ => Err(PdError::Failed),
         }
+    }
+}
+
+pub(crate) const RESET_DELAY_MS: u32 = 1600;
+pub(crate) const RESET_ARGS_LEN: usize = 2;
+const RESET_FEATURE_ENABLE: u8 = 0xAC;
+
+/// Arugments to reset-like commands
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ResetArgs {
+    pub switch_banks: bool,
+    pub copy_bank: bool,
+}
+
+impl ResetArgs {
+    pub fn encode_into_slice(&self, buf: &mut [u8]) -> Result<(), PdError> {
+        if buf.len() < RESET_ARGS_LEN {
+            return Err(PdError::InvalidParams);
+        }
+        buf[0] = if self.switch_banks { RESET_FEATURE_ENABLE } else { 0 };
+        buf[1] = if self.copy_bank { RESET_FEATURE_ENABLE } else { 0 };
+        Ok(())
     }
 }
