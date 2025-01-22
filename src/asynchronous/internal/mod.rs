@@ -161,6 +161,17 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
         let mode = Mode::try_from(mode.mode()).map_err(Error::Pd)?;
         Ok(mode)
     }
+
+    /// Get FW version
+    pub async fn get_fw_version(&mut self) -> Result<u32, Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        self.borrow_port(PORT0)?
+            .into_registers()
+            .version()
+            .read_async()
+            .await
+            .map(|r| r.version())
+    }
 }
 
 #[cfg(test)]
@@ -183,6 +194,9 @@ mod test {
     const PORT1_ADDR0: u8 = ADDR0[1];
     const PORT0_ADDR1: u8 = ADDR1[0];
     const PORT1_ADDR1: u8 = ADDR1[1];
+
+    /// Test firmware version, no particular meaning to this value
+    const TEST_FW_VERSION: u32 = 0x12345678;
 
     // Use dual-port version to fully test port-specific code
     type Tps66994<B> = Tps6699x<TPS66994_NUM_PORTS, B>;
@@ -437,5 +451,33 @@ mod test {
         let mock = Mock::new(&[]);
         let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
         test_get_modes(&mut tps6699x, PORT0_ADDR1).await;
+    }
+
+    async fn test_get_fw_version(tps6699x: &mut Tps66994<Mock>, expected_addr: u8, expected_version: u32) {
+        let mut transactions = Vec::new();
+        transactions.push(create_register_read(
+            expected_addr,
+            0x0F,
+            expected_version.to_le_bytes(),
+        ));
+        tps6699x.bus.update_expectations(&transactions);
+
+        let version = tps6699x.get_fw_version().await.unwrap();
+        assert_eq!(version, expected_version);
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_get_fw_version_0() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR0);
+        test_get_fw_version(&mut tps6699x, PORT0_ADDR0, TEST_FW_VERSION).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_fw_version_1() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
+        test_get_fw_version(&mut tps6699x, PORT0_ADDR1, TEST_FW_VERSION).await;
     }
 }
