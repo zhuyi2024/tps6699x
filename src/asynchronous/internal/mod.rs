@@ -172,6 +172,17 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
             .await
             .map(|r| r.version())
     }
+
+    /// Get customer use value
+    pub async fn get_customer_use(&mut self) -> Result<u64, Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        self.borrow_port(PortId(0))?
+            .into_registers()
+            .customer_use()
+            .read_async()
+            .await
+            .map(|r| r.customer_use())
+    }
 }
 
 #[cfg(test)]
@@ -197,6 +208,8 @@ mod test {
 
     /// Test firmware version, no particular meaning to this value
     const TEST_FW_VERSION: u32 = 0x12345678;
+    /// Test customer use value, no particular meaning to this value
+    const TEST_CUSTOMER_USE: u64 = 0x123456789abcdef0;
 
     // Use dual-port version to fully test port-specific code
     type Tps66994<B> = Tps6699x<TPS66994_NUM_PORTS, B>;
@@ -479,5 +492,29 @@ mod test {
         let mock = Mock::new(&[]);
         let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
         test_get_fw_version(&mut tps6699x, PORT0_ADDR1, TEST_FW_VERSION).await;
+    }
+
+    async fn test_get_customer_use(tps6699x: &mut Tps66994<Mock>, expected_addr: u8, expected_value: u64) {
+        let mut transactions = Vec::new();
+        transactions.push(create_register_read(expected_addr, 0x06, expected_value.to_le_bytes()));
+        tps6699x.bus.update_expectations(&transactions);
+
+        let value = tps6699x.get_customer_use().await.unwrap();
+        assert_eq!(value, expected_value);
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_get_customer_use_0() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR0);
+        test_get_customer_use(&mut tps6699x, PORT0_ADDR0, TEST_CUSTOMER_USE).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_customer_use_1() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
+        test_get_customer_use(&mut tps6699x, PORT0_ADDR1, TEST_CUSTOMER_USE).await;
     }
 }
