@@ -127,6 +127,33 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
         }
         Ok(())
     }
+
+    /// Complete firmware update
+    pub async fn execute_tfuc(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
+        let mut arg_bytes = [0u8; RESET_ARGS_LEN];
+
+        let args = ResetArgs {
+            switch_banks: false,
+            copy_bank: true,
+        };
+
+        args.encode_into_slice(&mut arg_bytes).map_err(Error::Pd)?;
+
+        // This is a controller-level command, shouldn't matter which port we use
+        let port = PortId(0);
+        self.send_command(delay, port, Command::Tfuc, Some(&arg_bytes)).await?;
+
+        delay.delay_ms(RESET_DELAY_MS).await;
+
+        // Confirm we're in the correct mode
+        let mode = self.get_mode().await?;
+        if mode != Mode::App0 && mode != Mode::App1 {
+            error!("Failed to enter normal mode, mode: {:?}", mode);
+            return Err(PdError::InvalidMode.into());
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -291,5 +318,43 @@ mod test {
     async fn test_execute_tfus_1() {
         let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
         test_execute_tfus(&mut tps6699x, PORT0_ADDR1).await;
+    }
+
+    async fn test_execute_tfuc(tps6699x: &mut Tps66994<Mock>, expected_addr: u8) {
+        let mut delay = Delay {};
+        let mut transactions = Vec::new();
+
+        transactions.push(create_register_write(
+            expected_addr,
+            REG_DATA1,
+            [0, RESET_FEATURE_ENABLE],
+        ));
+        transactions.push(create_register_write(
+            expected_addr,
+            0x08,
+            (Command::Tfuc as u32).to_le_bytes(),
+        ));
+        transactions.push(create_register_read(expected_addr, 0x08, [0; 4]));
+        transactions.push(create_register_read(
+            expected_addr,
+            0x03,
+            (Mode::App0 as u32).to_le_bytes(),
+        ));
+        tps6699x.bus.update_expectations(&transactions);
+
+        tps6699x.execute_tfuc(&mut delay).await.unwrap();
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_execute_tfuc_0() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        test_execute_tfuc(&mut tps6699x, PORT0_ADDR0).await;
+    }
+
+    #[tokio::test]
+    async fn test_execute_tfuc_1() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        test_execute_tfuc(&mut tps6699x, PORT0_ADDR1).await;
     }
 }

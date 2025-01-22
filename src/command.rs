@@ -25,6 +25,8 @@ pub enum Command {
 
     /// Tomcat firmware update mode enter
     Tfus = u32_from_str("TFUs"),
+    /// Tomcat firmware update complete
+    Tfuc = u32_from_str("TFUc"),
 }
 
 impl Command {
@@ -33,6 +35,7 @@ impl Command {
         match self {
             // Reset-type commands don't need to be checked
             Command::Success | Command::Invalid | Command::Gaid | Command::Tfus => 0,
+            Command::Tfuc => 5000,
         }
     }
 }
@@ -116,7 +119,7 @@ impl Into<Result<(), PdError>> for ReturnValue {
 
 pub(crate) const RESET_DELAY_MS: u32 = 1600;
 pub(crate) const RESET_ARGS_LEN: usize = 2;
-const RESET_FEATURE_ENABLE: u8 = 0xAC;
+pub(crate) const RESET_FEATURE_ENABLE: u8 = 0xAC;
 
 /// Arugments to reset-like commands
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
