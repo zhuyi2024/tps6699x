@@ -4,6 +4,20 @@ config:
   default_bit_order: LSB0
   defmt_feature: defmt
 
+Mode:
+  type: register
+  address: 0x03
+  size_bits: 32
+  reset_value: 0x0
+  access: RO
+  description: Controller operation mode
+  fields:
+    Mode:
+      base: uint
+      start: 0
+      end: 31
+      description: Controller operation mode
+
 # These are better named int_event_i2c*, but device_driver has issues breaking those names up
 IntEventBus1:
   type: register

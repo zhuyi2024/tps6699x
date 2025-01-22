@@ -2,7 +2,7 @@
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
-use crate::registers;
+use crate::{registers, Mode, PORT0};
 
 /// Wrapper to allow implementing device_driver traits on our I2C bus
 pub struct Port<'a, B: I2c> {
@@ -152,6 +152,14 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
             .active_rdo_contract()
             .read_async()
             .await
+    }
+
+    /// Get controller operation mode
+    pub async fn get_mode(&mut self) -> Result<Mode, Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        let mode = self.borrow_port(PORT0)?.into_registers().mode().read_async().await?;
+        let mode = Mode::try_from(mode.mode()).map_err(Error::Pd)?;
+        Ok(mode)
     }
 }
 
@@ -397,5 +405,37 @@ mod test {
 
         test_get_active_rdo_contract(&mut tps6699x, PORT0, PORT0_ADDR1).await;
         test_get_active_rdo_contract(&mut tps6699x, PORT1, PORT1_ADDR1).await;
+    }
+
+    async fn test_get_mode(tps6699x: &mut Tps66994<Mock>, expected_addr: u8, expected_mode: Mode) {
+        let mut transactions = Vec::new();
+        transactions.push(create_register_read(expected_addr, 0x03, expected_mode));
+        tps6699x.bus.update_expectations(&transactions);
+
+        let mode = tps6699x.get_mode().await.unwrap();
+        assert_eq!(mode, expected_mode);
+        tps6699x.bus.done();
+    }
+
+    async fn test_get_modes(tps6699x: &mut Tps66994<Mock>, expected_addr: u8) {
+        test_get_mode(tps6699x, expected_addr, Mode::Boot).await;
+        test_get_mode(tps6699x, expected_addr, Mode::F211).await;
+        test_get_mode(tps6699x, expected_addr, Mode::App0).await;
+        test_get_mode(tps6699x, expected_addr, Mode::App1).await;
+        test_get_mode(tps6699x, expected_addr, Mode::Wtpr).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_modes_0() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR0);
+        test_get_modes(&mut tps6699x, PORT0_ADDR0).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_modes_1() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
+        test_get_modes(&mut tps6699x, PORT0_ADDR1).await;
     }
 }
