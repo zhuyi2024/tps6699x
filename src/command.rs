@@ -22,6 +22,9 @@ pub enum Command {
     Invalid = u32_from_str("!CMD"),
     /// Reset command
     Gaid = u32_from_str("GAID"),
+
+    /// Tomcat firmware update mode enter
+    Tfus = u32_from_str("TFUs"),
 }
 
 impl Command {
@@ -29,7 +32,7 @@ impl Command {
     pub fn valid_check_delay_us(self) -> u32 {
         match self {
             // Reset-type commands don't need to be checked
-            Command::Success | Command::Invalid | Command::Gaid => 0,
+            Command::Success | Command::Invalid | Command::Gaid | Command::Tfus => 0,
         }
     }
 }
@@ -133,3 +136,6 @@ impl ResetArgs {
         Ok(())
     }
 }
+
+/// Delay for completion of TFUs command
+pub(crate) const TFUS_DELAY_MS: u32 = 500;

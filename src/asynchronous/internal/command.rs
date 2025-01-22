@@ -7,7 +7,7 @@ use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::Tps6699x;
 use crate::command::*;
-use crate::{registers as regs, PORT0};
+use crate::{error, registers as regs, Mode, PORT0};
 
 impl<const N: usize, B: I2c> Tps6699x<N, B> {
     /// Sends a command without verifying that it is valid
@@ -109,6 +109,22 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
 
         delay.delay_ms(RESET_DELAY_MS).await;
 
+        Ok(())
+    }
+
+    /// Enter firmware update mode
+    pub async fn execute_tfus(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        self.send_command_unchecked(PORT0, Command::Tfus, None).await?;
+
+        delay.delay_ms(TFUS_DELAY_MS).await;
+
+        // Confirm we're in the correct mode
+        let mode = self.get_mode().await?;
+        if mode != Mode::F211 {
+            error!("Failed to enter firmware update mode, mode: {:?}", mode);
+            return Err(PdError::InvalidMode.into());
+        }
         Ok(())
     }
 }
@@ -243,5 +259,37 @@ mod test {
             },
         )
         .await;
+    }
+
+    async fn test_execute_tfus(tps6699x: &mut Tps66994<Mock>, expected_addr: u8) {
+        let mut delay = Delay {};
+        let mut transactions = Vec::new();
+
+        transactions.push(create_register_write(
+            expected_addr,
+            0x08,
+            (Command::Tfus as u32).to_le_bytes(),
+        ));
+        transactions.push(create_register_read(
+            expected_addr,
+            0x03,
+            (Mode::F211 as u32).to_le_bytes(),
+        ));
+        tps6699x.bus.update_expectations(&transactions);
+
+        tps6699x.execute_tfus(&mut delay).await.unwrap();
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_execute_tfus_0() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        test_execute_tfus(&mut tps6699x, PORT0_ADDR0).await;
+    }
+
+    #[tokio::test]
+    async fn test_execute_tfus_1() {
+        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        test_execute_tfus(&mut tps6699x, PORT0_ADDR1).await;
     }
 }
