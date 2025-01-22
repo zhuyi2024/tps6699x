@@ -4,6 +4,8 @@ use embedded_usb_pd::{Error, PdError, PortId};
 
 use crate::{registers, Mode, PORT0};
 
+mod command;
+
 /// Wrapper to allow implementing device_driver traits on our I2C bus
 pub struct Port<'a, B: I2c> {
     bus: &'a mut B,
@@ -196,15 +198,7 @@ mod test {
 
     use super::*;
     use crate::test::*;
-    use crate::{ADDR0, ADDR1, TPS66994_NUM_PORTS};
-
-    const PORT0: PortId = PortId(0);
-    const PORT1: PortId = PortId(1);
-
-    const PORT0_ADDR0: u8 = ADDR0[0];
-    const PORT1_ADDR0: u8 = ADDR0[1];
-    const PORT0_ADDR1: u8 = ADDR1[0];
-    const PORT1_ADDR1: u8 = ADDR1[1];
+    use crate::{ADDR0, ADDR1, PORT0, PORT1, TPS66994_NUM_PORTS};
 
     /// Test firmware version, no particular meaning to this value
     const TEST_FW_VERSION: u32 = 0x12345678;

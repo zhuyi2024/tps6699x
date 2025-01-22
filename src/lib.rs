@@ -3,6 +3,7 @@
 use embedded_usb_pd::{PdError, PortId};
 
 pub mod asynchronous;
+pub mod command;
 
 /// I2C address set 0
 pub const ADDR0: [u8; 2] = [0x20, 0x24];
@@ -21,6 +22,12 @@ pub mod registers {
         device_name: Registers,
         manifest: "device.yaml"
     );
+
+    /// Command data 1 register
+    /// This register is 512 bits and exceeds the maximum support by device_driver
+    pub const REG_DATA1: u8 = 0x09;
+    // Command data 1 register length
+    pub const REG_DATA1_LEN: usize = 64;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,10 +93,20 @@ pub(crate) const fn u32_from_str(value: &str) -> u32 {
 #[cfg(test)]
 pub(crate) mod test {
     extern crate std;
+    use core::time::Duration;
     use std::vec;
     use std::vec::Vec;
 
+    use embedded_hal_async::delay::DelayNs;
     use embedded_hal_mock::eh1::i2c::Transaction;
+    use tokio::time::sleep;
+
+    use super::*;
+
+    pub const PORT0_ADDR0: u8 = ADDR0[0];
+    pub const PORT1_ADDR0: u8 = ADDR0[1];
+    pub const PORT0_ADDR1: u8 = ADDR1[0];
+    pub const PORT1_ADDR1: u8 = ADDR1[1];
 
     /// Wrapper to easily create a register read transaction
     pub fn create_register_read<const N: usize, R: Into<[u8; N]>>(addr: u8, reg: u8, value: R) -> Transaction {
@@ -110,5 +127,12 @@ pub(crate) mod test {
         response.splice(2..2, value.into().iter().cloned());
 
         Transaction::write(addr, response)
+    }
+
+    pub struct Delay {}
+    impl DelayNs for Delay {
+        async fn delay_ns(&mut self, ns: u32) {
+            sleep(Duration::from_nanos(ns as u64)).await;
+        }
     }
 }

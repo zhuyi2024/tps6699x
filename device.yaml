@@ -32,6 +32,20 @@ CustomerUse:
       end: 63
       description: Controller operation mode
 
+Cmd1:
+  type: register
+  address: 0x08
+  size_bits: 32
+  reset_value: 0x0
+  access: RW
+  description: Command 1 register
+  fields:
+    Command:
+      base: uint
+      start: 0
+      end: 31
+      description: Command value
+
 Version:
   type: register
   address: 0x0F
