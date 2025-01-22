@@ -129,6 +129,18 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
     pub async fn get_port_status(&mut self, port: PortId) -> Result<registers::field_sets::Status, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().status().read_async().await
     }
+
+    /// Get active PDO contract
+    pub async fn get_active_pdo_contract(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::ActivePdoContract, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .active_pdo_contract()
+            .read_async()
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -311,5 +323,36 @@ mod test {
 
         test_get_port_status(&mut tps6699x, PORT0, PORT0_ADDR1).await;
         test_get_port_status(&mut tps6699x, PORT1, PORT1_ADDR1).await;
+    }
+
+    async fn test_get_active_pdo_contract(tps6699x: &mut Tps66994<Mock>, port: PortId, expected_addr: u8) {
+        use registers::field_sets::ActivePdoContract;
+
+        let mut transactions = Vec::new();
+        // Read status register
+        transactions.push(create_register_read(expected_addr, 0x34, ActivePdoContract::new_zero()));
+        tps6699x.bus.update_expectations(&transactions);
+
+        let active_pdo_contract = tps6699x.get_active_pdo_contract(port).await.unwrap();
+        assert_eq!(active_pdo_contract, ActivePdoContract::new_zero());
+        tps6699x.bus.done();
+    }
+
+    #[tokio::test]
+    async fn test_get_active_pdo_contract_ports_0() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR0);
+
+        test_get_active_pdo_contract(&mut tps6699x, PORT0, PORT0_ADDR0).await;
+        test_get_active_pdo_contract(&mut tps6699x, PORT1, PORT1_ADDR0).await;
+    }
+
+    #[tokio::test]
+    async fn test_get_active_pdo_contract_ports_1() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
+
+        test_get_active_pdo_contract(&mut tps6699x, PORT0, PORT0_ADDR1).await;
+        test_get_active_pdo_contract(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 }
