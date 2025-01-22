@@ -2,10 +2,18 @@
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
+use crate::registers;
+
 /// Wrapper to allow implementing device_driver traits on our I2C bus
 pub struct Port<'a, B: I2c> {
     bus: &'a mut B,
     addr: u8,
+}
+
+impl<'a, B: I2c> Port<'a, B> {
+    pub fn into_registers(self) -> registers::Registers<Port<'a, B>> {
+        registers::Registers::new(self)
+    }
 }
 
 impl<B: I2c> device_driver::AsyncRegisterInterface for Port<'_, B> {
@@ -99,10 +107,30 @@ impl<const N: usize, B: I2c> Tps6699x<N, B> {
             addr,
         })
     }
+
+    /// Clear interrupts on a port, returns asserted interrupts
+    pub async fn clear_interrupt(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
+        let p = self.borrow_port(port)?;
+        let mut registers = p.into_registers();
+
+        let flags = registers.int_event_bus_1().read_async().await?;
+        // Clear interrupt if anything is set
+        if flags != registers::field_sets::IntEventBus1::new_zero() {
+            registers.int_clear_bus_1().write_async(|r| *r = flags).await?;
+        }
+
+        Ok(flags)
+    }
 }
 
 #[cfg(test)]
 mod test {
+    extern crate std;
+    use std::vec::Vec;
+
     use device_driver::AsyncRegisterInterface;
     use embedded_hal_async::i2c::ErrorType;
     use embedded_hal_mock::eh1::i2c::Mock;
@@ -207,5 +235,43 @@ mod test {
 
         test_rw_ports(&mut tps6699x, PORT0, PORT0_ADDR1).await;
         test_rw_ports(&mut tps6699x, PORT1, PORT1_ADDR1).await;
+    }
+
+    async fn test_clear_interrupt(tps6699x: &mut Tps66994<Mock>, port: PortId, expected_addr: u8) {
+        use registers::field_sets::IntEventBus1;
+
+        // Create a fully asserted interrupt register
+        let int = !IntEventBus1::new_zero();
+        let mut transactions = Vec::new();
+
+        // Read the interrupt register
+        transactions.push(create_register_read(expected_addr, 0x14, int));
+
+        // Write to the interrupt clear register
+        transactions.push(create_register_write(expected_addr, 0x18, int));
+        tps6699x.bus.update_expectations(&transactions);
+
+        assert_eq!(tps6699x.clear_interrupt(port).await.unwrap(), int);
+        tps6699x.bus.done();
+    }
+
+    /// Test clearing interrupts with address set 0
+    #[tokio::test]
+    async fn test_clear_interrupt_0() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR0);
+
+        test_clear_interrupt(&mut tps6699x, PORT0, PORT0_ADDR0).await;
+        test_clear_interrupt(&mut tps6699x, PORT1, PORT1_ADDR0).await;
+    }
+
+    /// Test clearing interrupts with address set 0
+    #[tokio::test]
+    async fn test_clear_interrupt_1() {
+        let mock = Mock::new(&[]);
+        let mut tps6699x: Tps66994<Mock> = Tps6699x::new(mock, ADDR1);
+
+        test_clear_interrupt(&mut tps6699x, PORT0, PORT0_ADDR1).await;
+        test_clear_interrupt(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 }
