@@ -4,11 +4,13 @@ use core::sync::atomic::AtomicBool;
 use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
+use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use crate::asynchronous::internal;
+use crate::command::*;
 use crate::registers::field_sets::IntEventBus1;
 use crate::registers::{self};
 use crate::{error, Mode, MAX_SUPPORTED_PORTS};
@@ -159,6 +161,51 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Disable all interrupts for the lifetime of the returned guard
     pub fn disable_all_interrupts_guarded(&mut self) -> InterruptGuard<'_, M, B> {
         self.enable_interrupts_guarded([false; MAX_SUPPORTED_PORTS])
+    }
+
+    /// Execute the given command with no timeout
+    async fn execute_command_no_timeout(
+        &mut self,
+        port: PortId,
+        cmd: Command,
+        indata: Option<&[u8]>,
+        outdata: Option<&mut [u8]>,
+    ) -> Result<ReturnValue, Error<B::Error>> {
+        {
+            let mut inner = self.lock_inner().await;
+            let mut delay = Delay;
+            inner.send_command(&mut delay, port, cmd, indata).await?;
+        }
+
+        self.wait_interrupt(true, |p, flags| p == port && flags.cmd_1_completed())
+            .await;
+        {
+            let mut inner = self.lock_inner().await;
+            inner.read_command_result(port, outdata).await
+        }
+    }
+
+    /// Execute the given command with a timeout
+    #[allow(dead_code)]
+    async fn execute_command(
+        &mut self,
+        port: PortId,
+        cmd: Command,
+        timeout_ms: u32,
+        indata: Option<&[u8]>,
+        outdata: Option<&mut [u8]>,
+    ) -> Result<ReturnValue, Error<B::Error>> {
+        let result = with_timeout(
+            Duration::from_millis(timeout_ms.into()),
+            self.execute_command_no_timeout(port, cmd, indata, outdata),
+        )
+        .await;
+        if result.is_err() {
+            error!("Command {:#?} timed out", cmd);
+            return PdError::Timeout.into();
+        }
+
+        result.unwrap()
     }
 }
 
