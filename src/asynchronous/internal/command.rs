@@ -9,7 +9,7 @@ use super::Tps6699x;
 use crate::command::*;
 use crate::{error, registers as regs, Mode, PORT0};
 
-impl<const N: usize, B: I2c> Tps6699x<N, B> {
+impl<B: I2c> Tps6699x<B> {
     /// Sends a command without verifying that it is valid
     pub async fn send_command_unchecked(
         &mut self,
@@ -169,16 +169,12 @@ mod test {
 
     use super::*;
     use crate::test::*;
-    use crate::TPS66994_NUM_PORTS;
 
     /// Value used for generic command testing, no particular significance
     const TEST_CMD_DATA: u64 = 0x12345678abcdef;
 
-    // Use dual-port version to fully test port-specific code
-    type Tps66994<B> = Tps6699x<TPS66994_NUM_PORTS, B>;
-
     async fn test_send_command<const N: usize>(
-        tps6699x: &mut Tps66994<Mock>,
+        tps6699x: &mut Tps6699x<Mock>,
         expected_addr: u8,
         expected_cmd: Command,
         expected_data: Option<[u8; N]>,
@@ -217,7 +213,7 @@ mod test {
 
     #[tokio::test]
     async fn test_send_command_0() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR0);
         test_send_command::<0>(&mut tps6699x, PORT0_ADDR0, Command::Invalid, None).await;
         test_send_command(
             &mut tps6699x,
@@ -230,7 +226,7 @@ mod test {
 
     #[tokio::test]
     async fn test_send_command_1() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR1);
         test_send_command::<0>(&mut tps6699x, PORT0_ADDR1, Command::Invalid, None).await;
         test_send_command(
             &mut tps6699x,
@@ -241,7 +237,7 @@ mod test {
         .await;
     }
 
-    async fn test_reset(tps6699x: &mut Tps66994<Mock>, expected_addr: u8, expected_args: ResetArgs) {
+    async fn test_reset(tps6699x: &mut Tps6699x<Mock>, expected_addr: u8, expected_args: ResetArgs) {
         let mut delay = Delay {};
         let mut transactions = Vec::new();
 
@@ -262,7 +258,7 @@ mod test {
 
     #[tokio::test]
     async fn test_reset_0() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR0);
         test_reset(
             &mut tps6699x,
             PORT0_ADDR0,
@@ -276,7 +272,7 @@ mod test {
 
     #[tokio::test]
     async fn test_reset_1() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR1);
         test_reset(
             &mut tps6699x,
             PORT0_ADDR1,
@@ -288,7 +284,7 @@ mod test {
         .await;
     }
 
-    async fn test_execute_tfus(tps6699x: &mut Tps66994<Mock>, expected_addr: u8) {
+    async fn test_execute_tfus(tps6699x: &mut Tps6699x<Mock>, expected_addr: u8) {
         let mut delay = Delay {};
         let mut transactions = Vec::new();
 
@@ -310,17 +306,17 @@ mod test {
 
     #[tokio::test]
     async fn test_execute_tfus_0() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR0);
         test_execute_tfus(&mut tps6699x, PORT0_ADDR0).await;
     }
 
     #[tokio::test]
     async fn test_execute_tfus_1() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR1);
         test_execute_tfus(&mut tps6699x, PORT0_ADDR1).await;
     }
 
-    async fn test_execute_tfuc(tps6699x: &mut Tps66994<Mock>, expected_addr: u8) {
+    async fn test_execute_tfuc(tps6699x: &mut Tps6699x<Mock>, expected_addr: u8) {
         let mut delay = Delay {};
         let mut transactions = Vec::new();
 
@@ -348,13 +344,13 @@ mod test {
 
     #[tokio::test]
     async fn test_execute_tfuc_0() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR0);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR0);
         test_execute_tfuc(&mut tps6699x, PORT0_ADDR0).await;
     }
 
     #[tokio::test]
     async fn test_execute_tfuc_1() {
-        let mut tps6699x = Tps66994::new(Mock::new(&[]), ADDR1);
+        let mut tps6699x = Tps6699x::new_tps66994(Mock::new(&[]), ADDR1);
         test_execute_tfuc(&mut tps6699x, PORT0_ADDR1).await;
     }
 }
