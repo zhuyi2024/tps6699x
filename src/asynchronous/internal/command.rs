@@ -1,5 +1,6 @@
 //! This module implements functions to access the command register and its associate data register.
 //! The data register is larger than what device_driver can handle so access is done directly through the `AsyncRegisterInterface` trait.
+use bincode::config;
 use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
@@ -103,7 +104,8 @@ impl<B: I2c> Tps6699x<B> {
         // This is a controller-level command, shouldn't matter which port we use
         let mut arg_bytes = [0u8; RESET_ARGS_LEN];
 
-        args.encode_into_slice(&mut arg_bytes).map_err(Error::Pd)?;
+        bincode::encode_into_slice(args, &mut arg_bytes, config::standard().with_fixed_int_encoding())
+            .map_err(|_| Error::Pd(PdError::Serialize))?;
         self.send_command_unchecked(PORT0, Command::Gaid, Some(&arg_bytes))
             .await?;
 
@@ -137,7 +139,8 @@ impl<B: I2c> Tps6699x<B> {
             copy_bank: true,
         };
 
-        args.encode_into_slice(&mut arg_bytes).map_err(Error::Pd)?;
+        bincode::encode_into_slice(args, &mut arg_bytes, config::standard().with_fixed_int_encoding())
+            .map_err(|_| Error::Pd(PdError::Serialize))?;
 
         // This is a controller-level command, shouldn't matter which port we use
         let port = PortId(0);
@@ -242,7 +245,12 @@ mod test {
         let mut transactions = Vec::new();
 
         let mut arg_bytes = [0u8; RESET_ARGS_LEN];
-        expected_args.encode_into_slice(&mut arg_bytes).unwrap();
+        bincode::encode_into_slice(
+            &expected_args,
+            &mut arg_bytes,
+            config::standard().with_fixed_int_encoding(),
+        )
+        .unwrap();
 
         transactions.push(create_register_write(expected_addr, REG_DATA1, arg_bytes));
         transactions.push(create_register_write(

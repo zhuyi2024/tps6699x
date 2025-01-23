@@ -1,3 +1,6 @@
+use bincode::enc::Encoder;
+use bincode::error::EncodeError;
+use bincode::Encode;
 use embedded_usb_pd::PdError;
 
 const CMD_LEN: usize = 4;
@@ -128,17 +131,53 @@ pub struct ResetArgs {
     pub switch_banks: bool,
     pub copy_bank: bool,
 }
-
-impl ResetArgs {
-    pub fn encode_into_slice(&self, buf: &mut [u8]) -> Result<(), PdError> {
-        if buf.len() < RESET_ARGS_LEN {
-            return Err(PdError::InvalidParams);
-        }
-        buf[0] = if self.switch_banks { RESET_FEATURE_ENABLE } else { 0 };
-        buf[1] = if self.copy_bank { RESET_FEATURE_ENABLE } else { 0 };
-        Ok(())
+impl Encode for ResetArgs {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let switch_banks = if self.switch_banks { RESET_FEATURE_ENABLE } else { 0 };
+        Encode::encode(&switch_banks, encoder)?;
+        let copy_bank = if self.copy_bank { RESET_FEATURE_ENABLE } else { 0 };
+        Encode::encode(&copy_bank, encoder)
     }
 }
 
 /// Delay for completion of TFUs command
 pub(crate) const TFUS_DELAY_MS: u32 = 500;
+
+#[cfg(test)]
+mod test {
+    use bincode::config;
+
+    use super::*;
+
+    fn test_encode_reset_args(args: ResetArgs, expected: [u8; RESET_ARGS_LEN]) {
+        let mut buf = [0; RESET_ARGS_LEN];
+        bincode::encode_into_slice(args, &mut buf, config::standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(buf, expected);
+    }
+
+    #[test]
+    fn test_reset_args_encode() {
+        test_encode_reset_args(ResetArgs::default(), [0, 0]);
+        test_encode_reset_args(
+            ResetArgs {
+                switch_banks: true,
+                copy_bank: false,
+            },
+            [0xAC, 0],
+        );
+        test_encode_reset_args(
+            ResetArgs {
+                switch_banks: false,
+                copy_bank: true,
+            },
+            [0, 0xAC],
+        );
+        test_encode_reset_args(
+            ResetArgs {
+                switch_banks: true,
+                copy_bank: true,
+            },
+            [0xAC, 0xAC],
+        );
+    }
+}
