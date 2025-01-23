@@ -13,8 +13,10 @@
     "rust-analyzer.cargo.target": "thumbv8m.main-none-eabihf",
     "rust-analyzer.linkedProjects": [
         "${workspaceFolder}/Cargo.toml",
+        "${workspaceFolder}/examples/rt685s-evk/Cargo.toml",
     ],
     "rust-analyzer.cargo.features": [
-        "defmt",
+        //"defmt",
+        //"embassy"
     ]
 }
