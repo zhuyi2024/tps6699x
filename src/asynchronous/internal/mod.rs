@@ -82,7 +82,7 @@ impl<B: I2c> device_driver::AsyncRegisterInterface for Port<'_, B> {
 
 /// Low-level TSP6699x driver, generic over I2C bus (B)
 pub struct Tps6699x<B: I2c> {
-    bus: B,
+    pub(super) bus: B,
     /// I2C addresses for ports
     addr: [u8; MAX_SUPPORTED_PORTS],
     num_ports: usize,

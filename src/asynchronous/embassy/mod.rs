@@ -17,6 +17,7 @@ use crate::registers::field_sets::IntEventBus1;
 use crate::registers::{self};
 use crate::{error, Mode, MAX_SUPPORTED_PORTS};
 
+pub mod fw_update;
 pub mod task;
 
 pub mod controller {
