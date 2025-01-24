@@ -6,7 +6,9 @@ use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
 use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal::digital::InputPin;
+use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
+use embedded_usb_pd::asynchronous::controller::PdController;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use crate::asynchronous::internal;
@@ -206,6 +208,15 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         }
 
         result.unwrap()
+    }
+}
+
+impl<M: RawMutex, B: I2c> PdController for Tps6699x<'_, M, B> {
+    type BusError = B::Error;
+
+    async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
+        let mut inner = self.lock_inner().await;
+        inner.reset(delay, &Default::default()).await
     }
 }
 
