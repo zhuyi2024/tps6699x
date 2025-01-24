@@ -6,6 +6,7 @@ license = "MIT"
 rust-version = "1.83"
 
 [dependencies]
+embedded-io-async = "0.6.1"
 embedded-hal = "1.0.0"
 embedded-hal-async = "1.0.0"
 embedded-usb-pd = { git = "https://github.com/OpenDevicePartnership/embedded-usb-pd", default-features = false }
@@ -28,7 +29,7 @@ defmt = [
     "embassy-sync/defmt",
     "embassy-time/defmt",
     "embassy-time/defmt-timestamp-uptime",
-
+    "embedded-usb-pd/defmt",
 ]
 embassy = ["dep:embassy-sync", "dep:embassy-time"]
 log = ["dep:log"]
