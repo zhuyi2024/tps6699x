@@ -11,6 +11,7 @@ use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::asynchronous::controller::PdController;
 use embedded_usb_pd::{Error, PdError, PortId};
 
+use super::interrupt;
 use crate::asynchronous::internal;
 use crate::command::*;
 use crate::registers::field_sets::IntEventBus1;
@@ -141,31 +142,6 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         }
     }
 
-    /// Set the interrupt state for the lifetime of the returned guard
-    pub fn enable_interrupts_guarded(&mut self, enabled: [bool; MAX_SUPPORTED_PORTS]) -> InterruptGuard<'_, M, B> {
-        InterruptGuard::new(self.controller, enabled)
-    }
-
-    /// Set the interrupt state for the given port for the lifetime of the returned guard
-    pub fn enable_interrupt_guarded(
-        &mut self,
-        port: PortId,
-        enabled: bool,
-    ) -> Result<InterruptGuard<'_, M, B>, Error<B::Error>> {
-        if port.0 as usize >= self.controller.num_ports {
-            return PdError::InvalidPort.into();
-        }
-
-        let mut state = self.controller.interrupts_enabled();
-        state[port.0 as usize] = enabled;
-        Ok(self.enable_interrupts_guarded(state))
-    }
-
-    /// Disable all interrupts for the lifetime of the returned guard
-    pub fn disable_all_interrupts_guarded(&mut self) -> InterruptGuard<'_, M, B> {
-        self.enable_interrupts_guarded([false; MAX_SUPPORTED_PORTS])
-    }
-
     /// Execute the given command with no timeout
     async fn execute_command_no_timeout(
         &mut self,
@@ -209,6 +185,22 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         }
 
         result.unwrap()
+    }
+}
+
+impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {
+    type Guard = InterruptGuard<'a, M, B>;
+    type BusError = B::Error;
+
+    async fn interrupts_enabled(&self) -> Result<[bool; MAX_SUPPORTED_PORTS], Error<Self::BusError>> {
+        Ok(self.controller.interrupts_enabled())
+    }
+
+    async fn enable_interrupts_guarded(
+        &mut self,
+        enabled: [bool; MAX_SUPPORTED_PORTS],
+    ) -> Result<Self::Guard, Error<Self::BusError>> {
+        Ok(InterruptGuard::new(self.controller, enabled))
     }
 }
 
@@ -288,3 +280,5 @@ impl<M: RawMutex, B: I2c> Drop for InterruptGuard<'_, M, B> {
         self.controller.enable_interrupts(self.target_state);
     }
 }
+
+impl<M: RawMutex, B: I2c> interrupt::InterruptGuard for InterruptGuard<'_, M, B> {}

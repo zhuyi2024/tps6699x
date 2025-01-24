@@ -1,18 +1,18 @@
 use core::future::Future;
+use core::iter::zip;
 
 use bincode::config;
 use embedded_hal_async::delay::DelayNs;
 use embedded_io_async::{Read, ReadExactError, Seek, SeekFrom};
 use embedded_usb_pd::{Error as DeviceError, PdError};
 
+use super::interrupt::InterruptController;
 use crate::command::*;
 use crate::fw_update::*;
-use crate::{error, info, warn};
+use crate::{error, info, warn, PORT0};
 
 /// Trait for updating the firmware of a target device
-pub trait UpdateTarget {
-    type BusError;
-
+pub trait UpdateTarget: InterruptController {
     fn fw_update_mode_enter(
         &mut self,
         delay: &mut impl DelayNs,
@@ -342,17 +342,48 @@ async fn fw_update_complete<T: UpdateTarget, I: Read + Seek>(
 }
 
 /// Updates the firmware of all given controllers
-pub async fn perform_fw_update<T: UpdateTarget, I: Read + Seek>(
+pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Read + Seek>(
     delay: &mut impl DelayNs,
-    controllers: &mut [&mut T],
+    mut controllers: [&mut T; N],
     image: &mut I,
 ) -> Result<(), Error<T, I>> {
     info!("Starting FW update");
-    enter_fw_update_mode(delay, controllers).await?;
-    let tfui_args = fw_update_init(delay, controllers, image).await?;
-    fw_update_load_app_image(delay, controllers, image, tfui_args.num_data_blocks_tx as usize).await?;
-    fw_update_load_app_config(delay, controllers, image, tfui_args.num_data_blocks_tx as usize).await?;
-    fw_update_complete(delay, controllers).await?;
+
+    // Disable all interrupts during the reset into FW update mode
+    let mut main_guards: [Option<T::Guard>; N] = [const { None }; N];
+    for (guard, controller) in zip(main_guards.iter_mut(), controllers.iter_mut()) {
+        *guard = Some(controller.disable_all_interrupts_guarded().await.map_err(Error::from)?);
+    }
+
+    enter_fw_update_mode(delay, controllers.as_mut_slice()).await?;
+
+    // Re-enable interrupts on port 0 only, other ports don't respond to interrupts in FW update mode
+    let mut port0_guards: [Option<T::Guard>; N] = [const { None }; N];
+    for (guard, controller) in zip(port0_guards.iter_mut(), controllers.iter_mut()) {
+        *guard = Some(
+            controller
+                .enable_interrupt_guarded(PORT0, true)
+                .await
+                .map_err(Error::from)?,
+        );
+    }
+
+    let tfui_args = fw_update_init(delay, controllers.as_mut_slice(), image).await?;
+    fw_update_load_app_image(
+        delay,
+        controllers.as_mut_slice(),
+        image,
+        tfui_args.num_data_blocks_tx as usize,
+    )
+    .await?;
+    fw_update_load_app_config(
+        delay,
+        controllers.as_mut_slice(),
+        image,
+        tfui_args.num_data_blocks_tx as usize,
+    )
+    .await?;
+    fw_update_complete(delay, controllers.as_mut_slice()).await?;
 
     info!("FW update complete");
 
@@ -427,9 +458,23 @@ mod test {
     #[derive(Debug)]
     struct UpdateTargetNoop {}
 
-    impl UpdateTarget for UpdateTargetNoop {
+    impl InterruptController for UpdateTargetNoop {
+        type Guard = ();
         type BusError = ();
 
+        async fn interrupts_enabled(&self) -> Result<[bool; MAX_SUPPORTED_PORTS], Error<Self, Self::BusError>> {
+            Ok([true; MAX_SUPPORTED_PORTS])
+        }
+
+        async fn enable_interrupts_guarded(
+            &mut self,
+            enabled: [bool; MAX_SUPPORTED_PORTS],
+        ) -> Result<Self::Guard, Error<Self, Self::BusError>> {
+            Ok(())
+        }
+    }
+
+    impl UpdateTarget for UpdateTargetNoop {
         async fn fw_update_mode_enter(&mut self, _delay: &mut impl DelayNs) -> Result<(), DeviceError<Self::BusError>> {
             Ok(())
         }
