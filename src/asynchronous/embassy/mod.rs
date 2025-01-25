@@ -11,7 +11,7 @@ use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::asynchronous::controller::PdController;
 use embedded_usb_pd::{Error, PdError, PortId};
 
-use super::interrupt;
+use super::interrupt::{self, InterruptController};
 use crate::asynchronous::internal;
 use crate::command::*;
 use crate::registers::field_sets::IntEventBus1;
@@ -208,6 +208,7 @@ impl<M: RawMutex, B: I2c> PdController for Tps6699x<'_, M, B> {
     type BusError = B::Error;
 
     async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
+        let _guard = self.disable_all_interrupts_guarded().await;
         let mut inner = self.lock_inner().await;
         inner.reset(delay, &Default::default()).await
     }
