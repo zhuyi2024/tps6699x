@@ -56,3 +56,6 @@ static_cell = "2.1.0"
 
 [[bin]]
 name = "fw_update"
+
+[[bin]]
+name = "plug_status"
