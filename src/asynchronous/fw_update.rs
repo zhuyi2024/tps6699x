@@ -47,16 +47,19 @@ pub trait UpdateTarget: InterruptController {
     ) -> impl Future<Output = Result<(), DeviceError<Self::BusError>>>;
 }
 
+/// Trait for anything that can be used as an image for firmware update
+pub trait Image: Read + Seek {}
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Error<T: UpdateTarget, I: Read + Seek> {
+pub enum Error<T: UpdateTarget, I: Image> {
     Bus(T::BusError),
     Pd(PdError),
     Io(I::Error),
     ReadExact(ReadExactError<I::Error>),
 }
 
-impl<T: UpdateTarget, I: Read + Seek> From<DeviceError<T::BusError>> for Error<T, I> {
+impl<T: UpdateTarget, I: Image> From<DeviceError<T::BusError>> for Error<T, I> {
     fn from(e: DeviceError<T::BusError>) -> Self {
         match e {
             DeviceError::Bus(e) => Error::Bus(e),
@@ -100,7 +103,7 @@ async fn exit_fw_update_mode<T: UpdateTarget>(
 }
 
 /// Helper function to read from an image at a specific offset
-async fn read_from_exact<I: Read + Seek>(
+async fn read_from_exact<I: Image>(
     image: &mut I,
     offset: usize,
     buf: &mut [u8],
@@ -113,7 +116,7 @@ async fn read_from_exact<I: Read + Seek>(
 }
 
 /// Initialize FW update on all controller
-async fn fw_update_init<T: UpdateTarget, I: Read + Seek>(
+async fn fw_update_init<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
@@ -198,7 +201,7 @@ const fn app_config_block_metadata_offset(num_data_blocks: usize, app_size: usiz
     app_size + IMAGE_ID_LEN + HEADER_METADATA_LEN + HEADER_BLOCK_LEN + num_data_blocks * DATA_BLOCK_METADATA_LEN
 }
 
-async fn get_image_size<I: Read + Seek>(image: &mut I) -> Result<usize, ReadExactError<I::Error>> {
+async fn get_image_size<I: Image>(image: &mut I) -> Result<usize, ReadExactError<I::Error>> {
     let mut image_size_data = [0; 4];
     read_from_exact(image, APP_IMAGE_SIZE_OFFSET, &mut image_size_data).await?;
     Ok(u32::from_le_bytes(image_size_data) as usize)
@@ -210,7 +213,7 @@ fn data_block_index_to_block_index(block_index: usize) -> usize {
 }
 
 /// Stream and validate a block of data to all controllers
-async fn fw_update_stream_data<T: UpdateTarget, I: Read + Seek>(
+async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
@@ -281,7 +284,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Read + Seek>(
 }
 
 /// Load the app image to all controllers
-async fn fw_update_load_app_image<T: UpdateTarget, I: Read + Seek>(
+async fn fw_update_load_app_image<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
@@ -304,7 +307,7 @@ async fn fw_update_load_app_image<T: UpdateTarget, I: Read + Seek>(
 }
 
 /// Load the app config to all controllers
-async fn fw_update_load_app_config<T: UpdateTarget, I: Read + Seek>(
+async fn fw_update_load_app_config<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
@@ -325,7 +328,7 @@ async fn fw_update_load_app_config<T: UpdateTarget, I: Read + Seek>(
 }
 
 /// Complete the FW update on all controllers
-async fn fw_update_complete<T: UpdateTarget, I: Read + Seek>(
+async fn fw_update_complete<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
 ) -> Result<(), Error<T, I>> {
@@ -342,7 +345,7 @@ async fn fw_update_complete<T: UpdateTarget, I: Read + Seek>(
 }
 
 /// Updates the firmware of all given controllers
-pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Read + Seek>(
+pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     mut controllers: [&mut T; N],
     image: &mut I,
