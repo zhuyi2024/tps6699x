@@ -6,6 +6,7 @@ use embedded_hal_async::i2c::I2c;
 use super::Interrupt;
 use crate::{error, warn};
 
+/// Task to process all given interrupts
 pub async fn interrupt_task<const N: usize, M: RawMutex, B: I2c, INT: Wait + InputPin>(
     int: &mut INT,
     mut interrupts: [&mut Interrupt<'_, M, B>; N],

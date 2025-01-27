@@ -1,4 +1,4 @@
-//! Asynchronous TPS6699x driver
+//! Asynchronous, low-level TPS6699x driver. This module provides a low-level interface
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 

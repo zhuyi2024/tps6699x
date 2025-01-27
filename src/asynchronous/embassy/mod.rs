@@ -1,3 +1,4 @@
+//! This module contains a high-level API uses embassy synchronization types
 use core::iter::zip;
 use core::sync::atomic::AtomicBool;
 
@@ -25,14 +26,20 @@ pub mod controller {
     use super::*;
     use crate::{TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
 
+    /// Controller struct. This struct is meant to be created and then immediately broken into its parts
     pub struct Controller<M: RawMutex, B: I2c> {
+        /// Low-level TPS6699x driver
         pub(super) inner: Mutex<M, internal::Tps6699x<B>>,
+        /// Signal for awaiting an interrupt
         pub(super) interrupt_waker: Signal<M, [IntEventBus1; MAX_SUPPORTED_PORTS]>,
+        /// Current interrupt state
         pub(super) interrupts_enabled: [AtomicBool; MAX_SUPPORTED_PORTS],
+        /// Number of active ports
         pub(super) num_ports: usize,
     }
 
     impl<M: RawMutex, B: I2c> Controller<M, B> {
+        /// Private constructor
         pub fn new(bus: B, addr: [u8; MAX_SUPPORTED_PORTS], num_ports: usize) -> Result<Self, Error<B::Error>> {
             Ok(Self {
                 inner: Mutex::new(internal::Tps6699x::new(bus, addr, num_ports)),
@@ -42,26 +49,31 @@ pub mod controller {
             })
         }
 
+        /// Create a new controller for the TPS66993
         pub fn new_tps66993(bus: B, addr: u8) -> Result<Self, Error<B::Error>> {
             Self::new(bus, [addr, 0], TPS66993_NUM_PORTS)
         }
 
+        /// Create a new controller for the TPS66994
         pub fn new_tps66994(bus: B, addr: [u8; TPS66994_NUM_PORTS]) -> Result<Self, Error<B::Error>> {
             Self::new(bus, addr, TPS66994_NUM_PORTS)
         }
 
+        /// Breaks the controller into its parts
         pub fn make_parts(&mut self) -> (Tps6699x<'_, M, B>, Interrupt<'_, M, B>) {
             let tps = Tps6699x { controller: self };
             let interrupt = Interrupt { controller: self };
             (tps, interrupt)
         }
 
+        /// Enable or disable interrupts for the given ports
         pub(super) fn enable_interrupts(&self, enabled: [bool; MAX_SUPPORTED_PORTS]) {
             for (enabled, s) in zip(enabled.iter(), self.interrupts_enabled.iter()) {
                 s.store(*enabled, core::sync::atomic::Ordering::SeqCst);
             }
         }
 
+        /// Returns current interrupt state
         pub(super) fn interrupts_enabled(&self) -> [bool; MAX_SUPPORTED_PORTS] {
             let mut interrupts_enabled = [false; MAX_SUPPORTED_PORTS];
             for (copy, enabled) in zip(interrupts_enabled.iter_mut(), self.interrupts_enabled.iter()) {
@@ -73,11 +85,13 @@ pub mod controller {
     }
 }
 
+/// Struct for controlling a TP6699x device
 pub struct Tps6699x<'a, M: RawMutex, B: I2c> {
     controller: &'a controller::Controller<M, B>,
 }
 
 impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
+    /// Locks the inner device
     async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
         self.controller.inner.lock().await
     }
@@ -118,6 +132,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.lock_inner().await.get_customer_use().await
     }
 
+    /// Returns the number of ports
     pub fn num_ports(&self) -> usize {
         self.controller.num_ports
     }
@@ -165,7 +180,6 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Execute the given command with a timeout
-    #[allow(dead_code)]
     async fn execute_command(
         &mut self,
         port: PortId,
@@ -223,6 +237,7 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
         self.controller.inner.lock().await
     }
 
+    /// Process interrupts
     pub async fn process_interrupt(
         &mut self,
         int: &mut impl InputPin,
@@ -239,13 +254,13 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
                     continue;
                 }
 
-                // Early exit if checking the last port cleared the interrupt
                 let result = int.is_high();
                 if result.is_err() {
                     error!("Failed to read interrupt line");
                     return PdError::Failed.into();
                 }
 
+                // Early exit if checking the last port cleared the interrupt
                 if result.unwrap() {
                     continue;
                 }

@@ -12,11 +12,16 @@ pub const ADDR0: [u8; 2] = [0x20, 0x24];
 /// I2C address set 1
 pub const ADDR1: [u8; 2] = [0x21, 0x25];
 
+/// Number of ports present on the TPS66994
 pub const TPS66994_NUM_PORTS: usize = 2;
+/// Number of ports present on the TPS66993
 pub const TPS66993_NUM_PORTS: usize = 1;
+/// Maximum number of ports supported by any device
 pub const MAX_SUPPORTED_PORTS: usize = 2;
 
+/// Port 0 constant
 pub const PORT0: PortId = PortId(0);
+/// Port 1 constant
 pub const PORT1: PortId = PortId(1);
 
 pub mod registers {

@@ -4,6 +4,7 @@ use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use embedded_usb_pd::PdError;
 
+/// Length of a command
 const CMD_LEN: usize = 4;
 
 /// Converts a 4-byte string into a u32
@@ -132,15 +133,20 @@ impl Into<Result<(), PdError>> for ReturnValue {
     }
 }
 
+/// Delay to wait for the device to restart
 pub(crate) const RESET_DELAY_MS: u32 = 1600;
+/// Length of arguments for the reset command
 pub(crate) const RESET_ARGS_LEN: usize = 2;
+/// Constant to enable a feature in the command args
 pub(crate) const RESET_FEATURE_ENABLE: u8 = 0xAC;
 
 /// Arugments to reset-like commands
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ResetArgs {
+    /// True to swap banks on reset
     pub switch_banks: bool,
+    /// True to copy the backup bank to the active bank
     pub copy_bank: bool,
 }
 impl Encode for ResetArgs {
@@ -157,20 +163,26 @@ pub(crate) const TFUS_DELAY_MS: u32 = 500;
 /// Timeout for completion of TFUs command
 #[allow(dead_code)]
 pub(crate) const TFUS_TIMEOUT_MS: u32 = TFUS_DELAY_MS + 100;
+/// Timeout for completion of TFUi command
 #[allow(dead_code)]
 pub(crate) const TFUI_TIMEOUT_MS: u32 = 100;
+/// Timeout for completion of TFUe command
 #[allow(dead_code)]
 pub(crate) const TFUE_TIMEOUT_MS: u32 = 100;
+/// Timeout for completion of TFUd command
 #[allow(dead_code)]
 pub(crate) const TFUD_TIMEOUT_MS: u32 = 100;
+/// Timeout for completion of TFUq command
 #[allow(dead_code)]
 pub(crate) const TFUQ_TIMEOUT_MS: u32 = 100;
+/// Timeout for completion of reset
 #[allow(dead_code)]
 pub(crate) const RESET_TIMEOUT_MS: u32 = RESET_DELAY_MS + 100;
-
+/// Length of TFUi arguments
 #[allow(dead_code)]
 pub(crate) const TFUI_ARGS_LEN: usize = 8;
 
+/// Arguments for TFUi command
 #[derive(Debug, Clone, Copy, Decode, Encode, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TfuiArgs {
@@ -180,6 +192,7 @@ pub struct TfuiArgs {
     pub broadcast_u16_address: u16,
 }
 
+/// Command type for TFUq command
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u8)]
@@ -194,6 +207,7 @@ impl Encode for TfuqCommandType {
     }
 }
 
+/// Status we're checking for in the TFUq command
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u8)]
@@ -211,6 +225,7 @@ impl Encode for TfuqStatusQuery {
     }
 }
 
+/// Status of a block supplied to device
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u8)]
@@ -288,9 +303,11 @@ impl Decode for TfuqBlockStatus {
     }
 }
 
+/// Length of TFUq args
 #[allow(dead_code)]
 pub(crate) const TFUQ_ARGS_LEN: usize = 2;
 
+/// Arguments for TFUq command
 #[derive(Debug, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TfuqArgs {
@@ -298,11 +315,14 @@ pub struct TfuqArgs {
     pub command: TfuqCommandType,
 }
 
+/// Length of return data from TFUq command
 #[allow(dead_code)]
 pub(crate) const TFUQ_RETURN_LEN: usize = 40;
+/// Number of block statuses present in TFUq return data
 #[allow(dead_code)]
 pub(crate) const TFUQ_RETURN_BLOCK_STATUS_LEN: usize = 13;
 
+/// Return data from TFUq command
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TfuqReturnValue {
@@ -346,7 +366,7 @@ impl Decode for TfuqReturnValue {
     }
 }
 
-#[allow(dead_code)]
+/// Arguments for TFUd command
 pub(crate) const TFUD_ARGS_LEN: usize = 8;
 #[derive(Debug, Decode, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

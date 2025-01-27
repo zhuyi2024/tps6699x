@@ -13,33 +13,46 @@ use crate::{error, info, warn, PORT0};
 
 /// Trait for updating the firmware of a target device
 pub trait UpdateTarget: InterruptController {
+    /// Enter FW update mode
     fn fw_update_mode_enter(
         &mut self,
         delay: &mut impl DelayNs,
     ) -> impl Future<Output = Result<(), DeviceError<Self::BusError>>>;
+
+    /// Start FW update
     fn fw_update_init(
         &mut self,
         delay: &mut impl DelayNs,
         args: &TfuiArgs,
     ) -> impl Future<Output = Result<ReturnValue, DeviceError<Self::BusError>>>;
+
+    /// Abort FW update
     fn fw_update_mode_exit(
         &mut self,
         delay: &mut impl DelayNs,
     ) -> impl Future<Output = Result<(), DeviceError<Self::BusError>>>;
+
+    /// Validate the most recent block supplied to the device
     fn fw_update_validate_stream(
         &mut self,
         delay: &mut impl DelayNs,
         block_index: usize,
     ) -> impl Future<Output = Result<TfuqBlockStatus, DeviceError<Self::BusError>>>;
+
+    /// Stream a block to the device
     fn fw_update_stream_data(
         &mut self,
         delay: &mut impl DelayNs,
         args: &TfudArgs,
     ) -> impl Future<Output = Result<(), DeviceError<Self::BusError>>>;
+
+    /// Complete the FW update process
     fn fw_update_complete(
         &mut self,
         delay: &mut impl DelayNs,
     ) -> impl Future<Output = Result<(), DeviceError<Self::BusError>>>;
+
+    /// Write data to all supplied devices
     fn fw_update_burst_write(
         &mut self,
         address: u8,
@@ -50,6 +63,7 @@ pub trait UpdateTarget: InterruptController {
 /// Trait for anything that can be used as an image for firmware update
 pub trait Image: Read + Seek {}
 
+/// Error type for the firmware update process
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error<T: UpdateTarget, I: Image> {
@@ -134,6 +148,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
     let (args, _) = bincode::decode_from_slice(&arg_bytes, config::standard().with_fixed_int_encoding())
         .map_err(|_| Error::Pd(PdError::Serialize))?;
 
+    // Initialize FW update on all controllers
     for (i, controller) in controllers.iter_mut().enumerate() {
         info!("Controller {}: Initializing FW update", i);
 
@@ -158,6 +173,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
         .await
         .map_err(Error::Io)?;
 
+    // Supply the header block to all controllers
     info!("Broadcasting header block");
     for _ in 0..HEADER_BLOCK_LEN / BURST_WRITE_SIZE {
         image.read_exact(&mut buf).await.map_err(Error::ReadExact)?;
@@ -169,6 +185,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
 
     delay.delay_ms(TFUI_BURST_WRITE_DELAY_MS).await;
 
+    // Validate the block on all controllers
     for (i, controller) in controllers.iter_mut().enumerate() {
         info!("Controller {}: Validating header block", i);
         match controller.fw_update_validate_stream(delay, HEADER_BLOCK_INDEX).await {
@@ -189,25 +206,29 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
     Ok(args)
 }
 
+/// Computes the offset of a data block's metadata
 const fn data_block_metadata_offset(block: usize) -> usize {
     HEADER_BLOCK_OFFSET + HEADER_BLOCK_LEN + (block * (DATA_BLOCK_LEN + DATA_BLOCK_METADATA_LEN))
 }
 
+/// Computes the offset of a data block's data
 const fn block_offset(metadata_offset: usize) -> usize {
     metadata_offset + DATA_BLOCK_METADATA_LEN
 }
 
+/// Computes the offset of the app config block's metadata
 const fn app_config_block_metadata_offset(num_data_blocks: usize, app_size: usize) -> usize {
     app_size + IMAGE_ID_LEN + HEADER_METADATA_LEN + HEADER_BLOCK_LEN + num_data_blocks * DATA_BLOCK_METADATA_LEN
 }
 
+/// Get the size of the image
 async fn get_image_size<I: Image>(image: &mut I) -> Result<usize, ReadExactError<I::Error>> {
     let mut image_size_data = [0; 4];
     read_from_exact(image, APP_IMAGE_SIZE_OFFSET, &mut image_size_data).await?;
     Ok(u32::from_le_bytes(image_size_data) as usize)
 }
 
-// Data block indices start at 1
+/// Converts a data block into a block index
 fn data_block_index_to_block_index(block_index: usize) -> usize {
     block_index + DATA_BLOCK_START_INDEX
 }
@@ -227,6 +248,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
 
     let mut arg_bytes = [0u8; MAX_METADATA_LEN];
 
+    // Get TFUd args from image
     read_from_exact(image, metadata_offset, &mut arg_bytes[..metadata_size])
         .await
         .map_err(Error::ReadExact)?;
@@ -262,6 +284,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
 
     delay.delay_ms(TFUD_BURST_WRITE_DELAY_MS).await;
 
+    // Validate the block on all controllers
     for (i, controller) in controllers.iter_mut().enumerate() {
         info!("Controller {}: Validating block {}", i, block_index);
         match controller.fw_update_validate_stream(delay, block_index).await {

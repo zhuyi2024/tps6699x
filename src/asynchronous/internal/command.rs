@@ -58,6 +58,7 @@ impl<B: I2c> Tps6699x<B> {
         Ok(())
     }
 
+    /// Check if the command has completed
     pub async fn check_command_complete(&mut self, port: PortId) -> Result<bool, Error<B::Error>> {
         let mut registers = self.borrow_port(port)?.into_registers();
         let status = registers.cmd_1().read_async().await?.command();
@@ -65,6 +66,7 @@ impl<B: I2c> Tps6699x<B> {
         Ok(Command::Success == status)
     }
 
+    /// Read the result of a command
     pub async fn read_command_result(
         &mut self,
         port: PortId,
