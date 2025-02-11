@@ -367,6 +367,7 @@ impl Decode for TfuqReturnValue {
 }
 
 /// Arguments for TFUd command
+#[allow(dead_code)]
 pub(crate) const TFUD_ARGS_LEN: usize = 8;
 #[derive(Debug, Decode, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
