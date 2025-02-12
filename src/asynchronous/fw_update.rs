@@ -475,6 +475,8 @@ impl Seek for SliceImage<'_> {
     }
 }
 
+impl Image for SliceImage<'_> {}
+
 #[cfg(test)]
 mod test {
     use super::*;
