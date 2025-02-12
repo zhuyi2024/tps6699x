@@ -66,15 +66,15 @@ pub trait Image: Read + Seek {}
 /// Error type for the firmware update process
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Error<T: UpdateTarget, I: Image> {
-    Bus(T::BusError),
+pub enum Error<BE, IE> {
+    Bus(BE),
     Pd(PdError),
-    Io(I::Error),
-    ReadExact(ReadExactError<I::Error>),
+    Io(IE),
+    ReadExact(ReadExactError<IE>),
 }
 
-impl<T: UpdateTarget, I: Image> From<DeviceError<T::BusError>> for Error<T, I> {
-    fn from(e: DeviceError<T::BusError>) -> Self {
+impl<BE, IE> From<DeviceError<BE>> for Error<BE, IE> {
+    fn from(e: DeviceError<BE>) -> Self {
         match e {
             DeviceError::Bus(e) => Error::Bus(e),
             DeviceError::Pd(e) => Error::Pd(e),
@@ -134,7 +134,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
-) -> Result<TfuiArgs, Error<T, I>> {
+) -> Result<TfuiArgs, Error<T::BusError, I::Error>> {
     if controllers.is_empty() {
         return Err(Error::Pd(PdError::InvalidParams));
     }
@@ -241,7 +241,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
     block_index: usize,
     metadata_offset: usize,
     metadata_size: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     if controllers.is_empty() {
         return Err(Error::Pd(PdError::InvalidParams));
     }
@@ -312,7 +312,7 @@ async fn fw_update_load_app_image<T: UpdateTarget, I: Image>(
     controllers: &mut [&mut T],
     image: &mut I,
     num_data_blocks: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     for i in 0..num_data_blocks {
         info!("Broadcasting block {}", i + 1);
         fw_update_stream_data(
@@ -335,7 +335,7 @@ async fn fw_update_load_app_config<T: UpdateTarget, I: Image>(
     controllers: &mut [&mut T],
     image: &mut I,
     num_data_blocks: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     let app_size = get_image_size(image).await.map_err(Error::ReadExact)? as usize;
     let metadata_offset = app_config_block_metadata_offset(num_data_blocks, app_size);
     info!("Broadcasting app config block");
@@ -354,7 +354,7 @@ async fn fw_update_load_app_config<T: UpdateTarget, I: Image>(
 async fn fw_update_complete<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     for (i, controller) in controllers.iter_mut().enumerate() {
         info!("Controller {}: Completing FW update", i);
         if controller.fw_update_complete(delay).await.is_err() {
@@ -372,7 +372,7 @@ pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     mut controllers: [&mut T; N],
     image: &mut I,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     info!("Starting FW update");
 
     // Disable all interrupts during the reset into FW update mode
@@ -409,7 +409,7 @@ pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Image>(
         tfui_args.num_data_blocks_tx as usize,
     )
     .await?;
-    fw_update_complete(delay, controllers.as_mut_slice()).await?;
+    fw_update_complete::<T, I>(delay, controllers.as_mut_slice()).await?;
 
     info!("FW update complete");
 
