@@ -155,7 +155,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
         match controller.fw_update_init(delay, &args).await {
             Ok(ReturnValue::Success) => (),
             Ok(r) => {
-                info!("Controller {}: Failed to initialize FW update, result {}", i, r);
+                info!("Controller {}: Failed to initialize FW update, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
@@ -191,7 +191,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
         match controller.fw_update_validate_stream(delay, HEADER_BLOCK_INDEX).await {
             Ok(TfuqBlockStatus::HeaderValidAndAuthentic) => (),
             Ok(r) => {
-                error!("Controller {}: Header block validation failed, result {}", i, r);
+                error!("Controller {}: Header block validation failed, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
@@ -292,7 +292,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
             | Ok(TfuqBlockStatus::DataValidButRepeated)
             | Ok(TfuqBlockStatus::HeaderValidAndAuthentic) => (),
             Ok(r) => {
-                error!("Controller {}: Block validation failed, result {}", i, r);
+                error!("Controller {}: Block validation failed, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
