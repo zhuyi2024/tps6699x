@@ -480,25 +480,36 @@ impl Image for SliceImage<'_> {}
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::asynchronous::interrupt::InterruptGuard;
     use crate::test::Delay;
+    use crate::MAX_SUPPORTED_PORTS;
 
     /// Simple mock update target for testing that does nothing
     #[derive(Debug)]
     struct UpdateTargetNoop {}
 
+    struct UpdateInterruptGuard;
+
+    impl Drop for UpdateInterruptGuard {
+        fn drop(&mut self) {}
+    }
+    impl InterruptGuard for UpdateInterruptGuard {}
+
     impl InterruptController for UpdateTargetNoop {
-        type Guard = ();
+        type Guard = UpdateInterruptGuard;
         type BusError = ();
 
-        async fn interrupts_enabled(&self) -> Result<[bool; MAX_SUPPORTED_PORTS], Error<Self, Self::BusError>> {
+        async fn interrupts_enabled(
+            &self,
+        ) -> Result<[bool; MAX_SUPPORTED_PORTS], embedded_usb_pd::Error<Self::BusError>> {
             Ok([true; MAX_SUPPORTED_PORTS])
         }
 
         async fn enable_interrupts_guarded(
             &mut self,
             enabled: [bool; MAX_SUPPORTED_PORTS],
-        ) -> Result<Self::Guard, Error<Self, Self::BusError>> {
-            Ok(())
+        ) -> Result<Self::Guard, embedded_usb_pd::Error<Self::BusError>> {
+            Ok(UpdateInterruptGuard)
         }
     }
 
@@ -600,6 +611,8 @@ mod test {
         }
     }
 
+    impl Image for ImageSeekForward {}
+
     /// Test that the fw update only seeks forward
     /// This ensures that the process will work if we're getting the update from another device
     #[tokio::test]
@@ -608,8 +621,6 @@ mod test {
         let mut target = UpdateTargetNoop {};
         let mut image = ImageSeekForward::new();
 
-        perform_fw_update(&mut delay, &mut [&mut target], &mut image)
-            .await
-            .unwrap();
+        perform_fw_update(&mut delay, [&mut target], &mut image).await.unwrap();
     }
 }
