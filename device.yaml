@@ -473,49 +473,15 @@ ActiveRdoContract:
   type: register
   address: 0x35
   access: RO
-  size_bits: 96
+  size_bits: 128
   reset_value: 0x000000000000000000000000
   description: Active PDO contract
   fields:
-    MinMaxOpCurrent:
+    ActiveRdo:
       base: uint
       start: 0
-      end: 9
-      description: Min/Max operating current
-    OpCurrent:
-      base: uint
-      start: 10
-      end: 19
-      description: Operating current
-    EprModeCapable:
-      base: bool
-      start: 22
-      description: EPR mode capable
-    UnchunkedSupported:
-      base: bool
-      start: 23
-      description: Unchunked supported
-    NoUsbSuspend:
-      base: bool
-      start: 24
-      description: No USB suspend
-    UsbCommCapable:
-      base: bool
-      start: 25
-      description: USB communication capable
-    CapabilityMismatch:
-      base: bool
-      start: 26
-      description: Capability mismatch
-    GiveBack:
-      base: bool
-      start: 27
-      description: Give back
-    ObjectPosition:
-      base: uint
-      start: 28
       end: 31
-      description: Object position
+      description: Active PDO
     SourceEprModeDo:
       base: uint
       start: 32
@@ -526,3 +492,8 @@ ActiveRdoContract:
       start: 64
       end: 95
       description: Sink EPR mode data object
+    Reserved:
+      base: uint
+      start : 96
+      end: 127
+      description: Reserved, just here to make sure that the result read size is correct
