@@ -450,6 +450,93 @@ Status:
         EntryFailed: 0x2
         PartialSuccess: 0x3
 
+PowerPathStatus:
+  type: register
+  address: 0x26
+  access: RO
+  size_bits: 40
+  reset_value: 0x0
+  description: Power path status
+  fields:
+    PaVconnSw:
+      base: uint
+      start: 0
+      end: 2
+      description: PA Vconn switch status
+      conversion:
+        name: PpVconnSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        Cc1: 0x2
+        Cc2: 0x3
+    PbVconnSw:
+      base: uint
+      start: 2
+      end: 4
+      description: PA Vconn switch status
+      conversion: PpVconnSw
+    PaIntVbusSw:
+      base: uint
+      start: 6
+      end: 9
+      description: PA int vbus switch status
+      conversion:
+        name: PpIntVbusSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        Enabled: 0x2
+        Unknown: catch_all
+    PbIntVbusSw:
+      base: uint
+      start: 9
+      end: 12
+      description: PB int vbus switch status
+      conversion: PpIntVbusSw
+    PaExtVbusSw:
+      base: uint
+      start: 12
+      end: 15
+      description: PA ext vbus switch status
+      conversion:
+        name: PpExtVbusSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        EnabledOutput: 0x2
+        EnabledInput: 0x4
+        Unknown: catch_all
+    PbExtVbusSw:
+      base: uint
+      start: 15
+      end: 18
+      description: PB ext vbus switch status
+      conversion: PpExtVbusSw
+    PaIntVbusOc:
+      base: bool
+      start: 28
+      description: PA int vbus overcurrent
+    PbIntVbusOc:
+      base: bool
+      start: 29
+      description: PB int vbus overcurrent
+    PaVconnOc:
+      base: bool
+      start: 34
+      description: PA vconn overcurrent
+    PbVconnOc:
+      base: bool
+      start: 35
+      description: PB vconn overcurrent
+    PowerSource:
+      base: uint
+      start: 38
+      end: 40
+      description: How the PD controller is powered
+      conversion:
+        name: PpPowerSource
+        Vin: 0x1
+        Vbus: 0x2
+        Unknown: catch_all
+
 ActivePdoContract:
   type: register
   address: 0x34
