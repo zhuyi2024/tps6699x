@@ -507,7 +507,7 @@ mod test {
 
         async fn enable_interrupts_guarded(
             &mut self,
-            enabled: [bool; MAX_SUPPORTED_PORTS],
+            _enabled: [bool; MAX_SUPPORTED_PORTS],
         ) -> Result<Self::Guard, embedded_usb_pd::Error<Self::BusError>> {
             Ok(UpdateInterruptGuard)
         }
