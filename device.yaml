@@ -614,15 +614,11 @@ PdStatus:
         SinkSource: 0x0
         Sink: 0x1
         Source: 0x2
-        Source/Sink: 0x3
-    PresentRole:
+        SourceSink: 0x3
+    IsSource:
       base: bool
       start: 6
       description: Present role
-      conversion:
-        name: PdPresentRole
-        Sink: false
-        Source: true
     SoftResetDetails:
       base: uint
       start: 8
@@ -667,7 +663,7 @@ PdStatus:
         ResetValueNoHardReset: 0x0
         ReceivedFromPortPartner: 0x1
         RequestedByHost: 0x2
-        InvalidDRSwapRequestDuringActiveMode: 0x3
+        InvalidDrSwapRequest: 0x3
         DischargeFailed: 0x4
         NoResponseTimeout: 0x5
         SendSoftReset: 0x6
@@ -680,7 +676,7 @@ PdStatus:
         SourceSendCapabilities: 0xD
         SourcingFault: 0xE
         UnableToSource: 0xF
-        FRSFailure: 0x10
+        FrsFailure: 0x10
         UnexpectedMessage: 0x11
         VconnRecoverySequenceFailure: 0x12
         Reserved: catch_all
@@ -693,41 +689,40 @@ PdStatus:
         name: PdErrorRecoveryDetails
         NoErrorRecovery: 0x0
         OverTemperatureShutdown: 0x1
-        PP5VLowUnexpectedly: 0x2
-        FaultInputGPIOAsserted: 0x3
-        OverVoltageOnPxVBUS: 0x4
-        ILIMOnPP5V: 0x6
-        ILIMOnPPCable: 0x7
-        OVPOnCCDetected: 0x8
+        Pp5VLow: 0x2
+        FaultInputGpioAsserted: 0x3
+        OverVoltageOnPxVbus: 0x4
+        IlimOnPp5V: 0x6
+        IlimOnPpCable: 0x7
+        OvpOnCcDetected: 0x8
         BackToNormalSystemPowerState: 0x9
-        InvalidDRSwap: 0x10
-        NoGoodCRC_PRSwap: 0x11
-        NoGoodCRC_FRSwap: 0x12
+        InvalidDrSwap: 0x10
+        PrSwapNoGoodCRC: 0x11
+        FrSwapNoGoodCRC: 0x12
         NoResponseTimeout: 0x15
-        PSSourceOffTimer_PRSwap: 0x16
-        PSSourceOnTimer_PRSwap: 0x17
-        PSSourceOnTimer_FRSwap: 0x18
-        TypeCSourceFailed_FRSwap: 0x19
-        SenderResponseTimer_FRSwap: 0x1a
-        PSSourceOffTimer_FRSwap: 0x1b
+        PrSwapSourceOffTimer: 0x16
+        PrSwapSourceOnTimer: 0x17
+        FrSwapSourceOnTimer: 0x18
+        FrSwapTypeCSourceFailed: 0x19
+        FrSwapSenderResponseTimer: 0x1a
+        FrSwapSourceOffTimer: 0x1b
         PolicyEngineErrorAttached: 0x1c
         PortConfig: 0x20
         ErrorWithDataControl: 0x21
         SwappingErrorDeadBattery: 0x22
         HostUpdatedGlobalSystemConfig: 0x23
-        HostIssuedGAID: 0x24
-        HostIssuedGaid: 0x25
-        HostIssuedDISC: 0x26
-        HostIssuedResetUCSI: 0x27
+        HostIssuedGaid: 0x24
+        HostIssuedDisc: 0x26
+        HostIssuedResetUcsi: 0x27
         ErrorAttached: 0x30
-        VCONNFailedToDischarge: 0x31
+        VconnFailedToDischarge: 0x31
         SystemPowerState: 0x32
-        HostDataControlUSBDisable: 0x33
-        SPMClientPortDisableChanged: 0x34
-        GPIOEventTypeCDisable: 0x35
-        CCOvp: 0x36
-        SBUOvp: 0x37
-        SBURxOvp: 0x38
+        HostDataControlUsbDisable: 0x33
+        SpmClientPortDisableChanged: 0x34
+        GpioEventTypecDisable: 0x35
+        CrOvp: 0x36
+        SbcOvp: 0x37
+        SbcRxOvp: 0x38
         Reserved: catch_all
     DataResetDetails:
       base: uint
@@ -738,7 +733,7 @@ PdStatus:
         name: PdDataResetDetails
         NoDataReset: 0x0
         ReceivedFromPortPartner: 0x1
-        RequestedByHostDRST: 0x2
+        RequestedByHostDrst: 0x2
         RequestedByHostDataControl: 0x3
-        ExitUSB4FollowingDRSwap: 0x4
+        ExitUsb4FollowingDrSwap: 0x4
         Reserved: catch_all
