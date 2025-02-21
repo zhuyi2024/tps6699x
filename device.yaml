@@ -537,6 +537,135 @@ PowerPathStatus:
         Vbus: 0x2
         Unknown: catch_all
 
+PortControl:
+  type: register
+  address: 0x29
+  access: RW
+  size_bits: 64
+  reset_value: 0x00C1C051
+  description: Port control
+  fields:
+    TypecCurrent:
+      base: uint
+      start: 0
+      end: 2
+      description: Type-C current limit
+      conversion:
+        name: TypecCurrent
+        UsbDefault: 0x0
+        Current1A5: 0x1
+        Current3A0: 0x2
+        Reserved: catch_all
+    ProcessSwapToSink:
+      base: bool
+      start: 4
+      description: Process swap to sink
+    InitiateSwapToSink:
+      base: bool
+      start: 5
+      description: Initiate swap to sink
+    ProcessSwapToSource:
+      base: bool
+      start: 6
+      description: Process swap to source
+    InitiateSwapToSource:
+      base: bool
+      start: 7
+      description: Initiate swap to source
+    AutoAlertEnable:
+      base: bool
+      start: 8
+      description: Automatically initiate alert messaging
+    AutoPpsStatusEnable:
+      base: bool
+      start: 10
+      description: Automatically return PPS_Status
+    RetimerFwUpdate:
+      base: bool
+      start: 11
+      description: Enable retimer firmware update
+    ProcessSwapToUfp:
+      base: bool
+      start: 12
+      description: Process swap to UFP
+    InitiateSwapToUfp:
+      base: bool
+      start: 13
+      description: Initiate swap to UFP
+    ProcessSwapToDfp:
+      base: bool
+      start: 14
+      description: Process swap to DFP
+    InitiateSwapToDfp:
+      base: bool
+      start: 15
+      description: Initiate swap to DFP
+    AutomaticIdRequest:
+      base: bool
+      start: 16
+      description: Automatically issue discover identity VDMs to appropriate SOPs
+    AmIntrusiveMode:
+      base: bool
+      start: 17
+      description: Allow host to manage alt mode process
+    ForceUsb3Gen1:
+      base: bool
+      start: 18
+      description: Force USB3 Gen1 mode
+    UnconstrainedPower:
+      base: bool
+      start: 19
+      description: External power present
+    EnableCurrentMonitor:
+      base: bool
+      start: 20
+      description: Enable current monitor using onboard ADC
+    SinkControl:
+      base: bool
+      start: 21
+      description: Disable PP3/4 switches automatically
+    FrSwapEnabled:
+      base: bool
+      start: 22
+      description: Enable fast role swap
+    VconnCurrentLimit:
+      base: uint
+      start: 23
+      end: 24
+      description: Vconn current limit
+      conversion:
+        name: VconnCurrentLimit
+        Current410ma: 0x0
+        Current590ma: 0x1
+    ChargerAdvertiseEnable:
+      base: uint
+      start: 26
+      end: 29
+      description: Configure types of legacy chargers to emulate
+      conversion:
+        name: ChargerAdvertise
+        NoCharger: 0x0
+        Bc12CdpCharger: 0x1
+        Bc12DcpCharger: 0x2
+        DcpAuto1: 0x5
+        DcpAuto2: 0x6
+        Reserved: catch_all
+    UsbDisable:
+      base: bool
+      start: 29
+      description: Disable USB data
+    ChargerDetectEnable:
+      base: uint
+      start: 30
+      end: 32
+      description: Enable legacy charger detection
+      conversion:
+        name: ChargerDetect
+        NoDetect: 0x0
+        Bc12: 0x1
+        Reserved: 0x2
+        Bc12Proprietary: 0x3
+
 ActivePdoContract:
   type: register
   address: 0x34

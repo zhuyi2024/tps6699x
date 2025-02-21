@@ -217,6 +217,18 @@ impl<B: I2c> Tps6699x<B> {
     pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().pd_status().read_async().await
     }
+
+    /// Get port control
+    pub async fn get_port_control(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .port_control()
+            .read_async()
+            .await
+    }
 }
 
 #[cfg(test)]

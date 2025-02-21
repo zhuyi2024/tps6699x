@@ -145,6 +145,14 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.lock_inner().await.get_pd_status(port).await
     }
 
+    /// Wrapper for `get_port_control`
+    pub async fn get_port_control(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
+        self.lock_inner().await.get_port_control(port).await
+    }
+
     /// Returns the number of ports
     pub fn num_ports(&self) -> usize {
         self.controller.num_ports
