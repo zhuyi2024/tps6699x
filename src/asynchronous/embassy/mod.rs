@@ -132,6 +132,14 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.lock_inner().await.get_customer_use().await
     }
 
+    /// Wrapper for `get_power_path_status`
+    pub async fn get_power_path_status(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PowerPathStatus, Error<B::Error>> {
+        self.lock_inner().await.get_power_path_status(port).await
+    }
+
     /// Returns the number of ports
     pub fn num_ports(&self) -> usize {
         self.controller.num_ports
