@@ -212,6 +212,11 @@ impl<B: I2c> Tps6699x<B> {
             .read_async()
             .await
     }
+
+    pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        self.borrow_port(port)?.into_registers().pd_status().read_async().await
+    }
 }
 
 #[cfg(test)]

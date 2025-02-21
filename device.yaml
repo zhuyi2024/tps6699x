@@ -584,3 +584,161 @@ ActiveRdoContract:
       start : 96
       end: 127
       description: Reserved, just here to make sure that the result read size is correct
+
+PdStatus:
+  type: register
+  address: 0x40
+  access: RO
+  size_bits: 32
+  reset_value: 0x0
+  description: PD status
+  fields:
+    CcPullUp:
+      base: uint
+      start: 2
+      end: 4
+      description: CC pull up value
+      conversion:
+        name: PdCcPullUp
+        NoPull: 0x0
+        UsbDefault: 0x1
+        Current1A5: 0x2
+        Current3A0: 0x3
+    PortType:
+      base: uint
+      start: 4
+      end: 6
+      description: Port type
+      conversion:
+        name: PdPortType
+        SinkSource: 0x0
+        Sink: 0x1
+        Source: 0x2
+        Source/Sink: 0x3
+    PresentRole:
+      base: bool
+      start: 6
+      description: Present role
+      conversion:
+        name: PdPresentRole
+        Sink: false
+        Source: true
+    SoftResetDetails:
+      base: uint
+      start: 8
+      end: 13
+      description: Soft reset details
+      conversion:
+        name: PdSoftResetDetails
+        NoSoftReset: 0x0
+        SoftResetReceived: 0x1
+        InvalidSourceCapabilities: 0x4
+        MessageRetriesExhausted: 0x5
+        UnexpectedAcceptMessage: 0x6
+        UnexpectedControlMessage: 0x7
+        UnexpectedGetSinkCapMessage: 0x8
+        UnexpectedGetSourceCapMessage: 0x9
+        UnexpectedGotoMinMessage: 0xA
+        UnexpectedPsrdyMessage: 0xB
+        UnexpectedPingMessage: 0xC
+        UnexpectedRejectMessage: 0xD
+        UnexpectedRequestMessage: 0xE
+        UnexpectedSinkCapabilitiesMessage: 0xF
+        UnexpectedSourceCapabilitiesMessage: 0x10
+        UnexpectedSwapMessage: 0x11
+        UnexpectedWaitCapabilitiesMessage: 0x12
+        UnknownControlMessage: 0x13
+        UnknownDataMessage: 0x14
+        InitializeSopController: 0x15
+        InitializeSopPrimeController: 0x16
+        UnexpectedExtendedMessage: 0x17
+        UnknownExtendedMessage: 0x18
+        UnexpectedDataMessage: 0x19
+        UnexpectedNotSupportedMessage: 0x1A
+        UnexpectedGetStatusMessage: 0x1B
+        Reserved: catch_all
+    HardResetDetails:
+      base: uint
+      start: 16
+      end: 22
+      description: Soft reset details
+      conversion:
+        name: PdHardResetDetails
+        ResetValueNoHardReset: 0x0
+        ReceivedFromPortPartner: 0x1
+        RequestedByHost: 0x2
+        InvalidDRSwapRequestDuringActiveMode: 0x3
+        DischargeFailed: 0x4
+        NoResponseTimeout: 0x5
+        SendSoftReset: 0x6
+        SinkSelectCapability: 0x7
+        SinkTransitionSink: 0x8
+        SinkWaitForCapabilities: 0x9
+        SoftReset: 0xA
+        SourceOnTimeout: 0xB
+        SourceCapabilityResponse: 0xC
+        SourceSendCapabilities: 0xD
+        SourcingFault: 0xE
+        UnableToSource: 0xF
+        FRSFailure: 0x10
+        UnexpectedMessage: 0x11
+        VconnRecoverySequenceFailure: 0x12
+        Reserved: catch_all
+    ErrorRecoveryDetails:
+      base: uint
+      start: 22
+      end: 28
+      description: Soft reset details
+      conversion:
+        name: PdErrorRecoveryDetails
+        NoErrorRecovery: 0x0
+        OverTemperatureShutdown: 0x1
+        PP5VLowUnexpectedly: 0x2
+        FaultInputGPIOAsserted: 0x3
+        OverVoltageOnPxVBUS: 0x4
+        ILIMOnPP5V: 0x6
+        ILIMOnPPCable: 0x7
+        OVPOnCCDetected: 0x8
+        BackToNormalSystemPowerState: 0x9
+        InvalidDRSwap: 0x10
+        NoGoodCRC_PRSwap: 0x11
+        NoGoodCRC_FRSwap: 0x12
+        NoResponseTimeout: 0x15
+        PSSourceOffTimer_PRSwap: 0x16
+        PSSourceOnTimer_PRSwap: 0x17
+        PSSourceOnTimer_FRSwap: 0x18
+        TypeCSourceFailed_FRSwap: 0x19
+        SenderResponseTimer_FRSwap: 0x1a
+        PSSourceOffTimer_FRSwap: 0x1b
+        PolicyEngineErrorAttached: 0x1c
+        PortConfig: 0x20
+        ErrorWithDataControl: 0x21
+        SwappingErrorDeadBattery: 0x22
+        HostUpdatedGlobalSystemConfig: 0x23
+        HostIssuedGAID: 0x24
+        HostIssuedGaid: 0x25
+        HostIssuedDISC: 0x26
+        HostIssuedResetUCSI: 0x27
+        ErrorAttached: 0x30
+        VCONNFailedToDischarge: 0x31
+        SystemPowerState: 0x32
+        HostDataControlUSBDisable: 0x33
+        SPMClientPortDisableChanged: 0x34
+        GPIOEventTypeCDisable: 0x35
+        CCOvp: 0x36
+        SBUOvp: 0x37
+        SBURxOvp: 0x38
+        Reserved: catch_all
+    DataResetDetails:
+      base: uint
+      start: 28
+      end: 31
+      description: Data reset details
+      conversion:
+        name: PdDataResetDetails
+        NoDataReset: 0x0
+        ReceivedFromPortPartner: 0x1
+        RequestedByHostDRST: 0x2
+        RequestedByHostDataControl: 0x3
+        ExitUSB4FollowingDRSwap: 0x4
+        Reserved: catch_all
