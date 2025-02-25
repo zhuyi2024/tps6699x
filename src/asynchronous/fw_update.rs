@@ -66,15 +66,15 @@ pub trait Image: Read + Seek {}
 /// Error type for the firmware update process
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Error<T: UpdateTarget, I: Image> {
-    Bus(T::BusError),
+pub enum Error<BE, IE> {
+    Bus(BE),
     Pd(PdError),
-    Io(I::Error),
-    ReadExact(ReadExactError<I::Error>),
+    Io(IE),
+    ReadExact(ReadExactError<IE>),
 }
 
-impl<T: UpdateTarget, I: Image> From<DeviceError<T::BusError>> for Error<T, I> {
-    fn from(e: DeviceError<T::BusError>) -> Self {
+impl<BE, IE> From<DeviceError<BE>> for Error<BE, IE> {
+    fn from(e: DeviceError<BE>) -> Self {
         match e {
             DeviceError::Bus(e) => Error::Bus(e),
             DeviceError::Pd(e) => Error::Pd(e),
@@ -134,7 +134,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
     image: &mut I,
-) -> Result<TfuiArgs, Error<T, I>> {
+) -> Result<TfuiArgs, Error<T::BusError, I::Error>> {
     if controllers.is_empty() {
         return Err(Error::Pd(PdError::InvalidParams));
     }
@@ -155,7 +155,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
         match controller.fw_update_init(delay, &args).await {
             Ok(ReturnValue::Success) => (),
             Ok(r) => {
-                info!("Controller {}: Failed to initialize FW update, result {}", i, r);
+                info!("Controller {}: Failed to initialize FW update, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
@@ -191,7 +191,7 @@ async fn fw_update_init<T: UpdateTarget, I: Image>(
         match controller.fw_update_validate_stream(delay, HEADER_BLOCK_INDEX).await {
             Ok(TfuqBlockStatus::HeaderValidAndAuthentic) => (),
             Ok(r) => {
-                error!("Controller {}: Header block validation failed, result {}", i, r);
+                error!("Controller {}: Header block validation failed, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
@@ -241,7 +241,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
     block_index: usize,
     metadata_offset: usize,
     metadata_size: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     if controllers.is_empty() {
         return Err(Error::Pd(PdError::InvalidParams));
     }
@@ -292,7 +292,7 @@ async fn fw_update_stream_data<T: UpdateTarget, I: Image>(
             | Ok(TfuqBlockStatus::DataValidButRepeated)
             | Ok(TfuqBlockStatus::HeaderValidAndAuthentic) => (),
             Ok(r) => {
-                error!("Controller {}: Block validation failed, result {}", i, r);
+                error!("Controller {}: Block validation failed, result {:#?}", i, r);
                 exit_fw_update_mode(delay, controllers).await?;
                 return Err(Error::Pd(PdError::Failed));
             }
@@ -312,7 +312,7 @@ async fn fw_update_load_app_image<T: UpdateTarget, I: Image>(
     controllers: &mut [&mut T],
     image: &mut I,
     num_data_blocks: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     for i in 0..num_data_blocks {
         info!("Broadcasting block {}", i + 1);
         fw_update_stream_data(
@@ -335,7 +335,7 @@ async fn fw_update_load_app_config<T: UpdateTarget, I: Image>(
     controllers: &mut [&mut T],
     image: &mut I,
     num_data_blocks: usize,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     let app_size = get_image_size(image).await.map_err(Error::ReadExact)? as usize;
     let metadata_offset = app_config_block_metadata_offset(num_data_blocks, app_size);
     info!("Broadcasting app config block");
@@ -354,7 +354,7 @@ async fn fw_update_load_app_config<T: UpdateTarget, I: Image>(
 async fn fw_update_complete<T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     controllers: &mut [&mut T],
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     for (i, controller) in controllers.iter_mut().enumerate() {
         info!("Controller {}: Completing FW update", i);
         if controller.fw_update_complete(delay).await.is_err() {
@@ -372,7 +372,7 @@ pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Image>(
     delay: &mut impl DelayNs,
     mut controllers: [&mut T; N],
     image: &mut I,
-) -> Result<(), Error<T, I>> {
+) -> Result<(), Error<T::BusError, I::Error>> {
     info!("Starting FW update");
 
     // Disable all interrupts during the reset into FW update mode
@@ -409,7 +409,7 @@ pub async fn perform_fw_update<const N: usize, T: UpdateTarget, I: Image>(
         tfui_args.num_data_blocks_tx as usize,
     )
     .await?;
-    fw_update_complete(delay, controllers.as_mut_slice()).await?;
+    fw_update_complete::<T, I>(delay, controllers.as_mut_slice()).await?;
 
     info!("FW update complete");
 
@@ -475,28 +475,41 @@ impl Seek for SliceImage<'_> {
     }
 }
 
+impl Image for SliceImage<'_> {}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::asynchronous::interrupt::InterruptGuard;
     use crate::test::Delay;
+    use crate::MAX_SUPPORTED_PORTS;
 
     /// Simple mock update target for testing that does nothing
     #[derive(Debug)]
     struct UpdateTargetNoop {}
 
+    struct UpdateInterruptGuard;
+
+    impl Drop for UpdateInterruptGuard {
+        fn drop(&mut self) {}
+    }
+    impl InterruptGuard for UpdateInterruptGuard {}
+
     impl InterruptController for UpdateTargetNoop {
-        type Guard = ();
+        type Guard = UpdateInterruptGuard;
         type BusError = ();
 
-        async fn interrupts_enabled(&self) -> Result<[bool; MAX_SUPPORTED_PORTS], Error<Self, Self::BusError>> {
+        async fn interrupts_enabled(
+            &self,
+        ) -> Result<[bool; MAX_SUPPORTED_PORTS], embedded_usb_pd::Error<Self::BusError>> {
             Ok([true; MAX_SUPPORTED_PORTS])
         }
 
         async fn enable_interrupts_guarded(
             &mut self,
-            enabled: [bool; MAX_SUPPORTED_PORTS],
-        ) -> Result<Self::Guard, Error<Self, Self::BusError>> {
-            Ok(())
+            _enabled: [bool; MAX_SUPPORTED_PORTS],
+        ) -> Result<Self::Guard, embedded_usb_pd::Error<Self::BusError>> {
+            Ok(UpdateInterruptGuard)
         }
     }
 
@@ -598,6 +611,8 @@ mod test {
         }
     }
 
+    impl Image for ImageSeekForward {}
+
     /// Test that the fw update only seeks forward
     /// This ensures that the process will work if we're getting the update from another device
     #[tokio::test]
@@ -606,8 +621,6 @@ mod test {
         let mut target = UpdateTargetNoop {};
         let mut image = ImageSeekForward::new();
 
-        perform_fw_update(&mut delay, &mut [&mut target], &mut image)
-            .await
-            .unwrap();
+        perform_fw_update(&mut delay, [&mut target], &mut image).await.unwrap();
     }
 }

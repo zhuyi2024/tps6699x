@@ -450,6 +450,222 @@ Status:
         EntryFailed: 0x2
         PartialSuccess: 0x3
 
+PowerPathStatus:
+  type: register
+  address: 0x26
+  access: RO
+  size_bits: 40
+  reset_value: 0x0
+  description: Power path status
+  fields:
+    PaVconnSw:
+      base: uint
+      start: 0
+      end: 2
+      description: PA Vconn switch status
+      conversion:
+        name: PpVconnSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        Cc1: 0x2
+        Cc2: 0x3
+    PbVconnSw:
+      base: uint
+      start: 2
+      end: 4
+      description: PA Vconn switch status
+      conversion: PpVconnSw
+    PaIntVbusSw:
+      base: uint
+      start: 6
+      end: 9
+      description: PA int vbus switch status
+      conversion:
+        name: PpIntVbusSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        Enabled: 0x2
+        Unknown: catch_all
+    PbIntVbusSw:
+      base: uint
+      start: 9
+      end: 12
+      description: PB int vbus switch status
+      conversion: PpIntVbusSw
+    PaExtVbusSw:
+      base: uint
+      start: 12
+      end: 15
+      description: PA ext vbus switch status
+      conversion:
+        name: PpExtVbusSw
+        Disabled: 0x0
+        DisabledFault: 0x1
+        EnabledOutput: 0x2
+        EnabledInput: 0x4
+        Unknown: catch_all
+    PbExtVbusSw:
+      base: uint
+      start: 15
+      end: 18
+      description: PB ext vbus switch status
+      conversion: PpExtVbusSw
+    PaIntVbusOc:
+      base: bool
+      start: 28
+      description: PA int vbus overcurrent
+    PbIntVbusOc:
+      base: bool
+      start: 29
+      description: PB int vbus overcurrent
+    PaVconnOc:
+      base: bool
+      start: 34
+      description: PA vconn overcurrent
+    PbVconnOc:
+      base: bool
+      start: 35
+      description: PB vconn overcurrent
+    PowerSource:
+      base: uint
+      start: 38
+      end: 40
+      description: How the PD controller is powered
+      conversion:
+        name: PpPowerSource
+        Vin: 0x1
+        Vbus: 0x2
+        Unknown: catch_all
+
+PortControl:
+  type: register
+  address: 0x29
+  access: RW
+  size_bits: 64
+  reset_value: 0x00C1C051
+  description: Port control
+  fields:
+    TypecCurrent:
+      base: uint
+      start: 0
+      end: 2
+      description: Type-C current limit
+      conversion:
+        name: TypecCurrent
+        UsbDefault: 0x0
+        Current1A5: 0x1
+        Current3A0: 0x2
+        Reserved: catch_all
+    ProcessSwapToSink:
+      base: bool
+      start: 4
+      description: Process swap to sink
+    InitiateSwapToSink:
+      base: bool
+      start: 5
+      description: Initiate swap to sink
+    ProcessSwapToSource:
+      base: bool
+      start: 6
+      description: Process swap to source
+    InitiateSwapToSource:
+      base: bool
+      start: 7
+      description: Initiate swap to source
+    AutoAlertEnable:
+      base: bool
+      start: 8
+      description: Automatically initiate alert messaging
+    AutoPpsStatusEnable:
+      base: bool
+      start: 10
+      description: Automatically return PPS_Status
+    RetimerFwUpdate:
+      base: bool
+      start: 11
+      description: Enable retimer firmware update
+    ProcessSwapToUfp:
+      base: bool
+      start: 12
+      description: Process swap to UFP
+    InitiateSwapToUfp:
+      base: bool
+      start: 13
+      description: Initiate swap to UFP
+    ProcessSwapToDfp:
+      base: bool
+      start: 14
+      description: Process swap to DFP
+    InitiateSwapToDfp:
+      base: bool
+      start: 15
+      description: Initiate swap to DFP
+    AutomaticIdRequest:
+      base: bool
+      start: 16
+      description: Automatically issue discover identity VDMs to appropriate SOPs
+    AmIntrusiveMode:
+      base: bool
+      start: 17
+      description: Allow host to manage alt mode process
+    ForceUsb3Gen1:
+      base: bool
+      start: 18
+      description: Force USB3 Gen1 mode
+    UnconstrainedPower:
+      base: bool
+      start: 19
+      description: External power present
+    EnableCurrentMonitor:
+      base: bool
+      start: 20
+      description: Enable current monitor using onboard ADC
+    SinkControl:
+      base: bool
+      start: 21
+      description: Disable PP3/4 switches automatically
+    FrSwapEnabled:
+      base: bool
+      start: 22
+      description: Enable fast role swap
+    VconnCurrentLimit:
+      base: uint
+      start: 23
+      end: 24
+      description: Vconn current limit
+      conversion:
+        name: VconnCurrentLimit
+        Current410ma: 0x0
+        Current590ma: 0x1
+    ChargerAdvertiseEnable:
+      base: uint
+      start: 26
+      end: 29
+      description: Configure types of legacy chargers to emulate
+      conversion:
+        name: ChargerAdvertise
+        NoCharger: 0x0
+        Bc12CdpCharger: 0x1
+        Bc12DcpCharger: 0x2
+        DcpAuto1: 0x5
+        DcpAuto2: 0x6
+        Reserved: catch_all
+    UsbDisable:
+      base: bool
+      start: 29
+      description: Disable USB data
+    ChargerDetectEnable:
+      base: uint
+      start: 30
+      end: 32
+      description: Enable legacy charger detection
+      conversion:
+        name: ChargerDetect
+        NoDetect: 0x0
+        Bc12: 0x1
+        Reserved: 0x2
+        Bc12Proprietary: 0x3
+
 ActivePdoContract:
   type: register
   address: 0x34
@@ -473,49 +689,15 @@ ActiveRdoContract:
   type: register
   address: 0x35
   access: RO
-  size_bits: 96
+  size_bits: 128
   reset_value: 0x000000000000000000000000
   description: Active PDO contract
   fields:
-    MinMaxOpCurrent:
+    ActiveRdo:
       base: uint
       start: 0
-      end: 9
-      description: Min/Max operating current
-    OpCurrent:
-      base: uint
-      start: 10
-      end: 19
-      description: Operating current
-    EprModeCapable:
-      base: bool
-      start: 22
-      description: EPR mode capable
-    UnchunkedSupported:
-      base: bool
-      start: 23
-      description: Unchunked supported
-    NoUsbSuspend:
-      base: bool
-      start: 24
-      description: No USB suspend
-    UsbCommCapable:
-      base: bool
-      start: 25
-      description: USB communication capable
-    CapabilityMismatch:
-      base: bool
-      start: 26
-      description: Capability mismatch
-    GiveBack:
-      base: bool
-      start: 27
-      description: Give back
-    ObjectPosition:
-      base: uint
-      start: 28
       end: 31
-      description: Object position
+      description: Active PDO
     SourceEprModeDo:
       base: uint
       start: 32
@@ -526,3 +708,161 @@ ActiveRdoContract:
       start: 64
       end: 95
       description: Sink EPR mode data object
+    Reserved:
+      base: uint
+      start : 96
+      end: 127
+      description: Reserved, just here to make sure that the result read size is correct
+
+PdStatus:
+  type: register
+  address: 0x40
+  access: RO
+  size_bits: 32
+  reset_value: 0x0
+  description: PD status
+  fields:
+    CcPullUp:
+      base: uint
+      start: 2
+      end: 4
+      description: CC pull up value
+      conversion:
+        name: PdCcPullUp
+        NoPull: 0x0
+        UsbDefault: 0x1
+        Current1A5: 0x2
+        Current3A0: 0x3
+    PortType:
+      base: uint
+      start: 4
+      end: 6
+      description: Port type
+      conversion:
+        name: PdPortType
+        SinkSource: 0x0
+        Sink: 0x1
+        Source: 0x2
+        SourceSink: 0x3
+    IsSource:
+      base: bool
+      start: 6
+      description: Present role
+    SoftResetDetails:
+      base: uint
+      start: 8
+      end: 13
+      description: Soft reset details
+      conversion:
+        name: PdSoftResetDetails
+        NoSoftReset: 0x0
+        SoftResetReceived: 0x1
+        InvalidSourceCapabilities: 0x4
+        MessageRetriesExhausted: 0x5
+        UnexpectedAcceptMessage: 0x6
+        UnexpectedControlMessage: 0x7
+        UnexpectedGetSinkCapMessage: 0x8
+        UnexpectedGetSourceCapMessage: 0x9
+        UnexpectedGotoMinMessage: 0xA
+        UnexpectedPsrdyMessage: 0xB
+        UnexpectedPingMessage: 0xC
+        UnexpectedRejectMessage: 0xD
+        UnexpectedRequestMessage: 0xE
+        UnexpectedSinkCapabilitiesMessage: 0xF
+        UnexpectedSourceCapabilitiesMessage: 0x10
+        UnexpectedSwapMessage: 0x11
+        UnexpectedWaitCapabilitiesMessage: 0x12
+        UnknownControlMessage: 0x13
+        UnknownDataMessage: 0x14
+        InitializeSopController: 0x15
+        InitializeSopPrimeController: 0x16
+        UnexpectedExtendedMessage: 0x17
+        UnknownExtendedMessage: 0x18
+        UnexpectedDataMessage: 0x19
+        UnexpectedNotSupportedMessage: 0x1A
+        UnexpectedGetStatusMessage: 0x1B
+        Reserved: catch_all
+    HardResetDetails:
+      base: uint
+      start: 16
+      end: 22
+      description: Soft reset details
+      conversion:
+        name: PdHardResetDetails
+        ResetValueNoHardReset: 0x0
+        ReceivedFromPortPartner: 0x1
+        RequestedByHost: 0x2
+        InvalidDrSwapRequest: 0x3
+        DischargeFailed: 0x4
+        NoResponseTimeout: 0x5
+        SendSoftReset: 0x6
+        SinkSelectCapability: 0x7
+        SinkTransitionSink: 0x8
+        SinkWaitForCapabilities: 0x9
+        SoftReset: 0xA
+        SourceOnTimeout: 0xB
+        SourceCapabilityResponse: 0xC
+        SourceSendCapabilities: 0xD
+        SourcingFault: 0xE
+        UnableToSource: 0xF
+        FrsFailure: 0x10
+        UnexpectedMessage: 0x11
+        VconnRecoverySequenceFailure: 0x12
+        Reserved: catch_all
+    ErrorRecoveryDetails:
+      base: uint
+      start: 22
+      end: 28
+      description: Soft reset details
+      conversion:
+        name: PdErrorRecoveryDetails
+        NoErrorRecovery: 0x0
+        OverTemperatureShutdown: 0x1
+        Pp5VLow: 0x2
+        FaultInputGpioAsserted: 0x3
+        OverVoltageOnPxVbus: 0x4
+        IlimOnPp5V: 0x6
+        IlimOnPpCable: 0x7
+        OvpOnCcDetected: 0x8
+        BackToNormalSystemPowerState: 0x9
+        InvalidDrSwap: 0x10
+        PrSwapNoGoodCRC: 0x11
+        FrSwapNoGoodCRC: 0x12
+        NoResponseTimeout: 0x15
+        PrSwapSourceOffTimer: 0x16
+        PrSwapSourceOnTimer: 0x17
+        FrSwapSourceOnTimer: 0x18
+        FrSwapTypeCSourceFailed: 0x19
+        FrSwapSenderResponseTimer: 0x1a
+        FrSwapSourceOffTimer: 0x1b
+        PolicyEngineErrorAttached: 0x1c
+        PortConfig: 0x20
+        ErrorWithDataControl: 0x21
+        SwappingErrorDeadBattery: 0x22
+        HostUpdatedGlobalSystemConfig: 0x23
+        HostIssuedGaid: 0x24
+        HostIssuedDisc: 0x26
+        HostIssuedResetUcsi: 0x27
+        ErrorAttached: 0x30
+        VconnFailedToDischarge: 0x31
+        SystemPowerState: 0x32
+        HostDataControlUsbDisable: 0x33
+        SpmClientPortDisableChanged: 0x34
+        GpioEventTypecDisable: 0x35
+        CrOvp: 0x36
+        SbcOvp: 0x37
+        SbcRxOvp: 0x38
+        Reserved: catch_all
+    DataResetDetails:
+      base: uint
+      start: 28
+      end: 31
+      description: Data reset details
+      conversion:
+        name: PdDataResetDetails
+        NoDataReset: 0x0
+        ReceivedFromPortPartner: 0x1
+        RequestedByHostDrst: 0x2
+        RequestedByHostDataControl: 0x3
+        ExitUsb4FollowingDrSwap: 0x4
+        Reserved: catch_all

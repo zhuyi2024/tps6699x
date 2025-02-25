@@ -132,6 +132,27 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.lock_inner().await.get_customer_use().await
     }
 
+    /// Wrapper for `get_power_path_status`
+    pub async fn get_power_path_status(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PowerPathStatus, Error<B::Error>> {
+        self.lock_inner().await.get_power_path_status(port).await
+    }
+
+    /// Wrapper for `get_pd_status`
+    pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
+        self.lock_inner().await.get_pd_status(port).await
+    }
+
+    /// Wrapper for `get_port_control`
+    pub async fn get_port_control(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
+        self.lock_inner().await.get_port_control(port).await
+    }
+
     /// Returns the number of ports
     pub fn num_ports(&self) -> usize {
         self.controller.num_ports
@@ -171,7 +192,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
             inner.send_command(&mut delay, port, cmd, indata).await?;
         }
 
-        self.wait_interrupt(true, |p, flags| p == port && flags.cmd_1_completed())
+        self.wait_interrupt(false, |p, flags| p == port && flags.cmd_1_completed())
             .await;
         {
             let mut inner = self.lock_inner().await;
@@ -199,6 +220,36 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         }
 
         result.unwrap()
+    }
+
+    async fn execute_srdy(&mut self, port: PortId, switch: SrdySwitch) -> Result<ReturnValue, Error<B::Error>> {
+        let arg_bytes = [switch.into()];
+        self.execute_command(port, Command::Srdy, SRDY_TIMEOUT_MS, Some(&arg_bytes), None)
+            .await
+    }
+
+    async fn execute_sryr(&mut self, port: PortId) -> Result<ReturnValue, Error<B::Error>> {
+        self.execute_command(port, Command::Sryr, SRYR_TIMEOUT_MS, None, None)
+            .await
+    }
+
+    /// Enable or disable the given power path
+    pub async fn enable_sink_path(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+        if enable {
+            self.execute_srdy(
+                port,
+                match port.0 {
+                    0 => Ok(SrdySwitch::PpExt1),
+                    1 => Ok(SrdySwitch::PpExt2),
+                    _ => PdError::InvalidPort.into(),
+                }?,
+            )
+            .await?;
+        } else {
+            self.execute_sryr(port).await?;
+        }
+
+        Ok(())
     }
 }
 

@@ -40,6 +40,11 @@ pub enum Command {
     Tfud = u32_from_str("TFUd"),
     /// Tomcat firmware update complete
     Tfuc = u32_from_str("TFUc"),
+
+    /// System ready to sink
+    Srdy = u32_from_str("SRDY"),
+    /// SRDY reset
+    Sryr = u32_from_str("SRYR"),
 }
 
 impl Command {
@@ -52,6 +57,7 @@ impl Command {
             Command::Tfui => 1500,
             Command::Tfuq | Command::Tfue => 200,
             Command::Tfud => 7000,
+            _ => 1000,
         }
     }
 }
@@ -366,7 +372,45 @@ impl Decode for TfuqReturnValue {
     }
 }
 
+/// Timeout for completion of SRDY command
+#[allow(dead_code)]
+pub(crate) const SRDY_TIMEOUT_MS: u32 = 100;
+/// Timeout for completion of SRYR command
+#[allow(dead_code)]
+pub(crate) const SRYR_TIMEOUT_MS: u32 = 100;
+/// Srdy switch to enable
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum SrdySwitch {
+    /// PP 5V1
+    Pp5V1,
+    /// PP 5V2
+    Pp5V2,
+    /// PP Ext 1
+    PpExt1,
+    /// PP Ext 2
+    PpExt2,
+    /// Automatically based on global config register
+    AutoConfig,
+    /// Automatically based on PD controller policy
+    AutoPolicy,
+}
+
+impl From<SrdySwitch> for u8 {
+    fn from(value: SrdySwitch) -> Self {
+        match value {
+            SrdySwitch::Pp5V1 => 0x0,
+            SrdySwitch::Pp5V2 => 0x1,
+            SrdySwitch::PpExt1 => 0x2,
+            SrdySwitch::PpExt2 => 0x3,
+            SrdySwitch::AutoConfig => 0x6,
+            SrdySwitch::AutoPolicy => 0x7,
+        }
+    }
+}
+
 /// Arguments for TFUd command
+#[allow(dead_code)]
 pub(crate) const TFUD_ARGS_LEN: usize = 8;
 #[derive(Debug, Decode, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

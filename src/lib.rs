@@ -26,6 +26,8 @@ pub const PORT1: PortId = PortId(1);
 
 pub mod registers {
     use device_driver;
+    use embedded_usb_pd::type_c;
+    use embedded_usb_pd::PdError;
     device_driver::create_device!(
         device_name: Registers,
         manifest: "device.yaml"
@@ -36,6 +38,32 @@ pub mod registers {
     pub const REG_DATA1: u8 = 0x09;
     // Command data 1 register length
     pub const REG_DATA1_LEN: usize = 64;
+
+    impl TryFrom<TypecCurrent> for type_c::Current {
+        type Error = PdError;
+
+        fn try_from(value: TypecCurrent) -> Result<Self, Self::Error> {
+            match value {
+                TypecCurrent::UsbDefault => Ok(type_c::Current::UsbDefault),
+                TypecCurrent::Current1A5 => Ok(type_c::Current::Current1A5),
+                TypecCurrent::Current3A0 => Ok(type_c::Current::Current3A0),
+                _ => Err(PdError::InvalidParams),
+            }
+        }
+    }
+
+    impl TryFrom<PdCcPullUp> for type_c::Current {
+        type Error = PdError;
+
+        fn try_from(value: PdCcPullUp) -> Result<Self, Self::Error> {
+            match value {
+                PdCcPullUp::UsbDefault => Ok(type_c::Current::UsbDefault),
+                PdCcPullUp::Current1A5 => Ok(type_c::Current::Current1A5),
+                PdCcPullUp::Current3A0 => Ok(type_c::Current::Current3A0),
+                _ => Err(PdError::InvalidParams),
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

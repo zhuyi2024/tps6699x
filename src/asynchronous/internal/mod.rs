@@ -199,6 +199,36 @@ impl<B: I2c> Tps6699x<B> {
             .await
             .map(|r| r.customer_use())
     }
+
+    /// Get power path status
+    pub async fn get_power_path_status(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PowerPathStatus, Error<B::Error>> {
+        // This is a controller-level command, shouldn't matter which port we use
+        self.borrow_port(port)?
+            .into_registers()
+            .power_path_status()
+            .read_async()
+            .await
+    }
+
+    /// Get PD status
+    pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
+        self.borrow_port(port)?.into_registers().pd_status().read_async().await
+    }
+
+    /// Get port control
+    pub async fn get_port_control(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .port_control()
+            .read_async()
+            .await
+    }
 }
 
 #[cfg(test)]
