@@ -229,6 +229,19 @@ impl<B: I2c> Tps6699x<B> {
             .read_async()
             .await
     }
+
+    /// Set port control
+    pub async fn set_port_control(
+        &mut self,
+        port: PortId,
+        control: registers::field_sets::PortControl,
+    ) -> Result<(), Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .port_control()
+            .write_async(|r| *r = control)
+            .await
+    }
 }
 
 #[cfg(test)]
