@@ -302,7 +302,7 @@ impl TryFrom<u8> for TfuqBlockStatus {
     }
 }
 
-impl Decode for TfuqBlockStatus {
+impl<Context> Decode<Context> for TfuqBlockStatus {
     fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
         let val: u8 = Decode::decode(decoder)?;
         TfuqBlockStatus::try_from(val).map_err(|_| DecodeError::Other("Invalid TfuqBlockStatus"))
@@ -342,7 +342,7 @@ pub struct TfuqReturnValue {
     pub num_of_app_config_updates: u16,
 }
 
-impl Decode for TfuqReturnValue {
+impl<Context> Decode<Context> for TfuqReturnValue {
     fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
         let active_host = Decode::decode(decoder)?;
         let current_state = Decode::decode(decoder)?;

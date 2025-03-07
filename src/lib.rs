@@ -26,8 +26,7 @@ pub const PORT1: PortId = PortId(1);
 
 pub mod registers {
     use device_driver;
-    use embedded_usb_pd::type_c;
-    use embedded_usb_pd::PdError;
+    use embedded_usb_pd::{type_c, PdError};
     device_driver::create_device!(
         device_name: Registers,
         manifest: "device.yaml"
