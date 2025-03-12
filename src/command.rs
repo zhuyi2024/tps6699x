@@ -169,18 +169,18 @@ pub(crate) const TFUS_DELAY_MS: u32 = 500;
 /// Timeout for completion of TFUs command
 #[allow(dead_code)]
 pub(crate) const TFUS_TIMEOUT_MS: u32 = TFUS_DELAY_MS + 100;
-/// Timeout for completion of TFUi command
+/// Timeout for completion of TFUi command, docs say 100ms, but 200ms is more reliable
 #[allow(dead_code)]
-pub(crate) const TFUI_TIMEOUT_MS: u32 = 100;
-/// Timeout for completion of TFUe command
+pub(crate) const TFUI_TIMEOUT_MS: u32 = 200;
+/// Timeout for completion of TFUe command, docs say 100ms, but 200ms is more reliable
 #[allow(dead_code)]
-pub(crate) const TFUE_TIMEOUT_MS: u32 = 100;
-/// Timeout for completion of TFUd command
+pub(crate) const TFUE_TIMEOUT_MS: u32 = 200;
+/// Timeout for completion of TFUd command, docs say 100ms, but 200ms is more reliable
 #[allow(dead_code)]
-pub(crate) const TFUD_TIMEOUT_MS: u32 = 100;
-/// Timeout for completion of TFUq command
+pub(crate) const TFUD_TIMEOUT_MS: u32 = 200;
+/// Timeout for completion of TFUq command, docs say 100ms, but 200ms is more reliable
 #[allow(dead_code)]
-pub(crate) const TFUQ_TIMEOUT_MS: u32 = 100;
+pub(crate) const TFUQ_TIMEOUT_MS: u32 = 200;
 /// Timeout for completion of reset
 #[allow(dead_code)]
 pub(crate) const RESET_TIMEOUT_MS: u32 = RESET_DELAY_MS + 100;
