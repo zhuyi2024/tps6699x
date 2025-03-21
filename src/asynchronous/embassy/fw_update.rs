@@ -37,7 +37,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
         let mut args_buf = [0u8; HEADER_METADATA_LEN];
 
         bincode::encode_into_slice(args, &mut args_buf, config::standard().with_fixed_int_encoding())
-            .map_err(|_| PdError::Serialize.into())?;
+            .map_err(|_| PdError::Serialize)?;
 
         self.execute_command(PORT0, Command::Tfui, TFUI_TIMEOUT_MS, Some(&args_buf), None)
             .await
@@ -83,7 +83,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
         let mut return_bytes = [0u8; TFUQ_RETURN_LEN];
 
         bincode::encode_into_slice(args, &mut arg_bytes, config::standard().with_fixed_int_encoding())
-            .map_err(|_| PdError::Serialize.into())?;
+            .map_err(|_| PdError::Serialize)?;
 
         let result = self
             .execute_command(
@@ -102,7 +102,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
 
         let (ret, _): (TfuqReturnValue, _) =
             bincode::decode_from_slice(&return_bytes, config::standard().with_fixed_int_encoding())
-                .map_err(|_| PdError::Serialize.into())?;
+                .map_err(|_| PdError::Serialize)?;
 
         Ok(ret.block_status[block_index])
     }
@@ -115,7 +115,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
         let mut arg_bytes = [0u8; TFUD_ARGS_LEN];
 
         bincode::encode_into_slice(args, &mut arg_bytes, config::standard().with_fixed_int_encoding())
-            .map_err(|_| PdError::Serialize.into())?;
+            .map_err(|_| PdError::Serialize)?;
         let result = self
             .execute_command(PORT0, Command::Tfud, TFUD_TIMEOUT_MS, Some(&arg_bytes), None)
             .await?;
