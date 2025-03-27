@@ -43,7 +43,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
     }
 
     /// Attempt to exit fw update mode
-    async fn fw_update_mode_exit(&mut self, _delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
+    async fn fw_update_mode_exit(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
         // Reset the controller if we failed to exit fw update mode
         if let Ok(ret) = self
             .execute_command(PORT0, Command::Tfue, TFUE_TIMEOUT_MS, None, None)
@@ -58,7 +58,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
 
         // Reset to return to normal operating mode
         info!("Resetting controller");
-        self.reset(&mut Delay).await?;
+        self.reset(delay).await?;
 
         Ok(())
     }
