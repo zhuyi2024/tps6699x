@@ -9,7 +9,6 @@ use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
-use embedded_usb_pd::asynchronous::controller::PdController;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::interrupt::{self, InterruptController};
@@ -278,6 +277,13 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
 
         Ok(())
     }
+
+    /// Reset the device.
+    async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
+        let _guard = self.disable_all_interrupts_guarded().await;
+        let mut inner = self.lock_inner().await;
+        inner.reset(delay, &Default::default()).await
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {
@@ -293,16 +299,6 @@ impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M,
         enabled: [bool; MAX_SUPPORTED_PORTS],
     ) -> Result<Self::Guard, Error<Self::BusError>> {
         Ok(InterruptGuard::new(self.controller, enabled))
-    }
-}
-
-impl<M: RawMutex, B: I2c> PdController for Tps6699x<'_, M, B> {
-    type BusError = B::Error;
-
-    async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
-        let _guard = self.disable_all_interrupts_guarded().await;
-        let mut inner = self.lock_inner().await;
-        inner.reset(delay, &Default::default()).await
     }
 }
 
