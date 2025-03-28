@@ -3,7 +3,6 @@ use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
-use embedded_usb_pd::asynchronous::controller::PdController;
 use embedded_usb_pd::{Error, PdError};
 
 use super::Tps6699x;
@@ -44,7 +43,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
     }
 
     /// Attempt to exit fw update mode
-    async fn fw_update_mode_exit(&mut self, _delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
+    async fn fw_update_mode_exit(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<Self::BusError>> {
         // Reset the controller if we failed to exit fw update mode
         if let Ok(ret) = self
             .execute_command(PORT0, Command::Tfue, TFUE_TIMEOUT_MS, None, None)
@@ -59,7 +58,7 @@ impl<M: RawMutex, B: I2c> UpdateTarget for Tps6699x<'_, M, B> {
 
         // Reset to return to normal operating mode
         info!("Resetting controller");
-        self.reset(&mut Delay).await?;
+        self.reset(delay).await?;
 
         Ok(())
     }
