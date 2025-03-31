@@ -279,7 +279,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Reset the device.
-    async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
+    pub async fn reset(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
         let _guard = self.disable_all_interrupts_guarded().await;
         let mut inner = self.lock_inner().await;
         inner.reset(delay, &Default::default()).await
