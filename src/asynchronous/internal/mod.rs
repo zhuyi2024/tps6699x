@@ -1,9 +1,10 @@
 //! Asynchronous, low-level TPS6699x driver. This module provides a low-level interface
+use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
-use crate::registers::{self};
-use crate::{Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
+use crate::boot_flags::{BootFlags, BootFlagsRaw};
+use crate::{registers, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
 
 mod command;
 
@@ -284,6 +285,22 @@ impl<B: I2c> Tps6699x<B> {
 
         self.set_system_config(config).await?;
         Ok(())
+    }
+
+    /// Get boot flags
+    pub async fn get_boot_flags(&mut self) -> Result<BootFlags, Error<B::Error>> {
+        let mut buf = [0u8; registers::REG_BOOT_FLAGS_LEN];
+        self.borrow_port(PORT0)?
+            .into_registers()
+            .interface()
+            .read_register(
+                registers::REG_BOOT_FLAGS,
+                (registers::REG_BOOT_FLAGS_LEN * 8) as u32,
+                &mut buf,
+            )
+            .await?;
+
+        Ok(BootFlagsRaw(buf))
     }
 }
 
