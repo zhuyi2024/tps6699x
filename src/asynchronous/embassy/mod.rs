@@ -16,7 +16,7 @@ use crate::asynchronous::internal;
 use crate::command::*;
 use crate::registers::field_sets::IntEventBus1;
 use crate::registers::{self};
-use crate::{error, Mode, MAX_SUPPORTED_PORTS};
+use crate::{error, trace, Mode, MAX_SUPPORTED_PORTS};
 
 pub mod fw_update;
 pub mod task;
@@ -316,7 +316,11 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
         &mut self,
         int: &mut impl InputPin,
     ) -> Result<[IntEventBus1; MAX_SUPPORTED_PORTS], Error<B::Error>> {
-        let mut flags = [IntEventBus1::new_zero(); MAX_SUPPORTED_PORTS];
+        let mut flags = self
+            .controller
+            .interrupt_waker
+            .try_take()
+            .unwrap_or([IntEventBus1::new_zero(); MAX_SUPPORTED_PORTS]);
 
         {
             let interrupts_enabled = self.controller.interrupts_enabled();
@@ -325,21 +329,24 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
                 let port_id = PortId(port as u8);
 
                 if !interrupts_enabled[port] {
+                    trace!("Port{}: Interrupt for disabled", port);
                     continue;
                 }
 
-                let result = int.is_high();
-                if result.is_err() {
-                    error!("Failed to read interrupt line");
-                    return PdError::Failed.into();
+                match int.is_high() {
+                    Ok(true) => {
+                        // Early exit if checking the last port cleared the interrupt
+                        trace!("Interrupt line is high, exiting");
+                        continue;
+                    }
+                    Err(_) => {
+                        error!("Failed to read interrupt line");
+                        return PdError::Failed.into();
+                    }
+                    _ => {}
                 }
 
-                // Early exit if checking the last port cleared the interrupt
-                if result.unwrap() {
-                    continue;
-                }
-
-                flags[port] = inner.clear_interrupt(port_id).await?;
+                flags[port] |= inner.clear_interrupt(port_id).await?;
             }
         }
 
