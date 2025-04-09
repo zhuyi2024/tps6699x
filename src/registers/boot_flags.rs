@@ -1,7 +1,7 @@
 //! Types and functions related to register 0x2D, boot flags
 use bitfield::bitfield;
 
-use crate::registers::REG_BOOT_FLAGS_LEN;
+use super::REG_BOOT_FLAGS_LEN;
 
 bitfield! {
     /// Boot flags register, bits 0-383

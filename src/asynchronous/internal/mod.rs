@@ -3,7 +3,6 @@ use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
-use crate::boot_flags::{BootFlags, BootFlagsRaw};
 use crate::{registers, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
 
 mod command;
@@ -288,7 +287,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get boot flags
-    pub async fn get_boot_flags(&mut self) -> Result<BootFlags, Error<B::Error>> {
+    pub async fn get_boot_flags(&mut self) -> Result<registers::boot_flags::BootFlags, Error<B::Error>> {
         let mut buf = [0u8; registers::REG_BOOT_FLAGS_LEN];
         self.borrow_port(PORT0)?
             .into_registers()
@@ -300,7 +299,7 @@ impl<B: I2c> Tps6699x<B> {
             )
             .await?;
 
-        Ok(BootFlagsRaw(buf))
+        Ok(registers::boot_flags::BootFlagsRaw(buf))
     }
 }
 
