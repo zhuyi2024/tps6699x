@@ -1,4 +1,5 @@
 use device_driver;
+use embedded_usb_pd::type_c::ConnectionState;
 use embedded_usb_pd::{type_c, PdError};
 
 pub mod boot_flags;
@@ -62,6 +63,19 @@ impl From<type_c::Current> for PdCcPullUp {
             type_c::Current::UsbDefault => PdCcPullUp::UsbDefault,
             type_c::Current::Current1A5 => PdCcPullUp::Current1A5,
             type_c::Current::Current3A0 => PdCcPullUp::Current3A0,
+        }
+    }
+}
+
+impl TryFrom<PlugMode> for ConnectionState {
+    type Error = PdError;
+
+    fn try_from(value: PlugMode) -> Result<Self, Self::Error> {
+        match value {
+            PlugMode::Debug => Ok(ConnectionState::DebugAccessory),
+            PlugMode::Audio => Ok(ConnectionState::AudioAccessory),
+            PlugMode::Connected | PlugMode::ConnectedNoRa => Ok(ConnectionState::Attached),
+            _ => Err(PdError::InvalidParams),
         }
     }
 }
