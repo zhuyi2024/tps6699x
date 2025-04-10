@@ -6,6 +6,7 @@ license = "MIT"
 rust-version = "1.83"
 
 [dependencies]
+bitfield = "0.19.0"
 embedded-io-async = "0.6.1"
 embedded-hal = "1.0.0"
 embedded-hal-async = "1.0.0"

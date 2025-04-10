@@ -15,8 +15,7 @@ use super::interrupt::{self, InterruptController};
 use crate::asynchronous::internal;
 use crate::command::*;
 use crate::registers::field_sets::IntEventBus1;
-use crate::registers::{self};
-use crate::{error, trace, Mode, MAX_SUPPORTED_PORTS};
+use crate::{error, registers, trace, Mode, MAX_SUPPORTED_PORTS};
 
 pub mod fw_update;
 pub mod task;
@@ -283,6 +282,12 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         let _guard = self.disable_all_interrupts_guarded().await;
         let mut inner = self.lock_inner().await;
         inner.reset(delay, &Default::default()).await
+    }
+
+    /// Get boot flags
+    pub async fn get_boot_flags(&mut self) -> Result<registers::boot_flags::BootFlags, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_boot_flags().await
     }
 }
 

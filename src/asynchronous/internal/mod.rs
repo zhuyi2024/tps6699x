@@ -1,9 +1,9 @@
 //! Asynchronous, low-level TPS6699x driver. This module provides a low-level interface
+use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::{Error, PdError, PortId};
 
-use crate::registers::{self};
-use crate::{Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
+use crate::{registers, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
 
 mod command;
 
@@ -69,13 +69,13 @@ impl<B: I2c> device_driver::AsyncRegisterInterface for Port<'_, B> {
             .map_err(Error::Bus)?;
 
         let len = buf[0] as usize;
-        if len > data.len() {
+        if len < data.len() {
             PdError::InvalidParams.into()
         } else if len == 0xff || len == 0 {
             // Controller is busy and can't respond
             PdError::Busy.into()
         } else {
-            data.copy_from_slice(&buf[1..len + 1]);
+            data.copy_from_slice(&buf[1..data.len() + 1]);
             Ok(())
         }
     }
@@ -285,6 +285,22 @@ impl<B: I2c> Tps6699x<B> {
         self.set_system_config(config).await?;
         Ok(())
     }
+
+    /// Get boot flags
+    pub async fn get_boot_flags(&mut self) -> Result<registers::boot_flags::BootFlags, Error<B::Error>> {
+        let mut buf = [0u8; registers::REG_BOOT_FLAGS_LEN];
+        self.borrow_port(PORT0)?
+            .into_registers()
+            .interface()
+            .read_register(
+                registers::REG_BOOT_FLAGS,
+                (registers::REG_BOOT_FLAGS_LEN * 8) as u32,
+                &mut buf,
+            )
+            .await?;
+
+        Ok(registers::boot_flags::BootFlagsRaw(buf))
+    }
 }
 
 #[cfg(test)]
@@ -294,7 +310,7 @@ mod test {
 
     use device_driver::AsyncRegisterInterface;
     use embedded_hal_async::i2c::ErrorType;
-    use embedded_hal_mock::eh1::i2c::Mock;
+    use embedded_hal_mock::eh1::i2c::{Mock, Transaction};
 
     use super::*;
     use crate::test::*;
@@ -330,6 +346,58 @@ mod test {
         Ok(())
     }
 
+    /// Test that attempting to read more than the available number of bytes fails
+    async fn test_read_port_overread<const N: usize>(
+        tps6699x: &mut Tps6699x<Mock>,
+        port_id: PortId,
+        expected_addr: u8,
+        reg: u8,
+        expected: [u8; N],
+    ) -> Result<(), Error<<Mock as ErrorType>::Error>> {
+        // +1 for the length byte, +1 for the overread byte to make the I2C mock happy with the lengths
+        let mut response = Vec::with_capacity(N + 2);
+        response.push(N as u8);
+        response.splice(1..1, expected.iter().cloned());
+        response.push(0x00);
+
+        tps6699x
+            .bus
+            .update_expectations(&[Transaction::write_read(expected_addr, std::vec![reg], response)]);
+
+        let mut port = tps6699x.borrow_port(port_id)?;
+        let mut result = std::vec![0; N + 1];
+        let r = port.read_register(reg, (expected.len() * 8) as u32, &mut result).await;
+        tps6699x.bus.done();
+        r
+    }
+
+    /// Test that attempting to read less than the available number of bytes succeeds
+    async fn test_read_port_underread<const N: usize>(
+        tps6699x: &mut Tps6699x<Mock>,
+        port_id: PortId,
+        expected_addr: u8,
+        reg: u8,
+        expected: [u8; N],
+    ) -> Result<(), Error<<Mock as ErrorType>::Error>> {
+        // +1 for the length byte, +1 for the unread byte to make the I2C mock happy with the lengths
+        let mut response = Vec::with_capacity(N + 2);
+        response.push((N + 1) as u8);
+        response.splice(1..1, expected.iter().cloned());
+        response.push(0x00);
+
+        tps6699x
+            .bus
+            .update_expectations(&[Transaction::write_read(expected_addr, std::vec![reg], response)]);
+
+        let mut port = tps6699x.borrow_port(port_id)?;
+        let mut result = std::vec![0; N + 1];
+        port.read_register(reg, (expected.len() * 8) as u32, &mut result)
+            .await?;
+        tps6699x.bus.done();
+
+        Ok(())
+    }
+
     async fn test_write_port<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
         port_id: PortId,
@@ -356,7 +424,16 @@ mod test {
         expected: [u8; N],
     ) -> Result<(), Error<<Mock as ErrorType>::Error>> {
         test_read_port::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
-        test_write_port::<N>(tps6699x, port_id, expected_addr, reg, expected).await
+        test_write_port::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
+        test_read_port_underread::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
+        if test_read_port_overread(tps6699x, port_id, expected_addr, reg, expected)
+            .await
+            .is_ok()
+        {
+            return Err(PdError::Failed.into());
+        }
+
+        Ok(())
     }
 
     async fn test_rw_ports(tps6699x: &mut Tps6699x<Mock>, port_id: PortId, expected_addr: u8) {
