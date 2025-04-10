@@ -301,6 +301,22 @@ impl<B: I2c> Tps6699x<B> {
 
         Ok(registers::boot_flags::BootFlagsRaw(buf))
     }
+
+    /// Get DP status
+    pub async fn get_dp_status(&mut self, port: PortId) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
+        let mut buf = [0u8; registers::REG_DP_STATUS_LEN];
+        self.borrow_port(port)?
+            .into_registers()
+            .interface()
+            .read_register(
+                registers::REG_DP_STATUS,
+                (registers::REG_DP_STATUS_LEN * 8) as u32,
+                &mut buf,
+            )
+            .await?;
+
+        Ok(registers::dp_status::DpStatusRaw(buf))
+    }
 }
 
 #[cfg(test)]

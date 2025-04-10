@@ -289,6 +289,12 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         let mut inner = self.lock_inner().await;
         inner.get_boot_flags().await
     }
+
+    /// Get DP status
+    pub async fn get_dp_status(&mut self, port: PortId) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_dp_status(port).await
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {
