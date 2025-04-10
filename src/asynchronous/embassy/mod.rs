@@ -310,6 +310,15 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         let mut inner = self.lock_inner().await;
         inner.get_usb_status(port).await
     }
+
+    /// Get user VID status
+    pub async fn get_user_vid(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_user_vid_status(port).await
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {

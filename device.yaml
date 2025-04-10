@@ -1126,6 +1126,43 @@ PdStatus:
         ExitUsb4FollowingDrSwap: 0x4
         Reserved: catch_all
 
+UserVidStatus:
+  type: register
+  address: 0x57
+  access: RO
+  size_bits: 16
+  reset_value: 0x0
+  fields:
+    UsvidDetected:
+      base: bool
+      start: 0
+      description: Asserted when a User VID has been detected.
+    UsvidActive:
+      base: bool
+      start: 1
+      description: Asserted when a User VID is active.
+    UsvidErrorCode:
+      base: uint
+      start: 2
+      end: 5
+      description: Error code
+    Mode1:
+      base: bool
+      start: 9
+      description: Asserted when Mode1 has been entered
+    Mode2:
+      base: bool
+      start: 10
+      description: Asserted when Mode2 has been entered
+    Mode3:
+      base: bool
+      start: 11
+      description: Asserted when Mode3 has been entered
+    Mode4:
+      base: bool
+      start: 12
+      description: Asserted when Mode4 has been entered
+
 IntelVidStatus:
   type: register
   address: 0x59

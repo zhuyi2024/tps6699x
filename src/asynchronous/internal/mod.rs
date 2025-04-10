@@ -334,6 +334,18 @@ impl<B: I2c> Tps6699x<B> {
     pub async fn get_usb_status(&mut self, port: PortId) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().usb_status().read_async().await
     }
+
+    /// Get user VID status
+    pub async fn get_user_vid_status(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .user_vid_status()
+            .read_async()
+            .await
+    }
 }
 
 #[cfg(test)]
