@@ -295,6 +295,15 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         let mut inner = self.lock_inner().await;
         inner.get_dp_status(port).await
     }
+
+    /// Get Intel VID status
+    pub async fn get_intel_vid(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::IntelVidStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_intel_vid_status(port).await
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {

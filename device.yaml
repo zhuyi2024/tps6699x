@@ -1081,3 +1081,44 @@ PdStatus:
         RequestedByHostDataControl: 0x3
         ExitUsb4FollowingDrSwap: 0x4
         Reserved: catch_all
+
+IntelVidStatus:
+  type: register
+  address: 0x59
+  access: RO
+  size_bits: 88
+  reset_value: 0x0
+  description: Intel VID status
+  fields:
+    IntelVidDetected:
+      base: bool
+      start: 0
+      description: Indicates if Intel VID is detected.
+    TbtModeActive:
+      base: bool
+      start: 1
+      description: Indicates if TBT Mode is active.
+    ForcedTbtMode:
+      base: bool
+      start: 2
+      description: Retimer in TBT state and ready for FW update
+    TbtAttentionData:
+      base: uint
+      start: 8
+      end: 39
+      description: Attention message contents
+    TbtEnterModeData:
+      base: uint
+      start: 40
+      end: 55
+      description: Data for TBT Enter mode message
+    TbtModeDataRxSop:
+      base: uint
+      start: 56
+      end: 71
+      description: Data for Discover Modes response
+    TbtModeDataRxSopPrime:
+      base: uint
+      start: 72
+      end: 87
+      description: Data for Discover Modes (SOP')

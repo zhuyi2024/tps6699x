@@ -317,6 +317,18 @@ impl<B: I2c> Tps6699x<B> {
 
         Ok(registers::dp_status::DpStatusRaw(buf))
     }
+
+    /// Get Intel VID status
+    pub async fn get_intel_vid_status(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::IntelVidStatus, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .intel_vid_status()
+            .read_async()
+            .await
+    }
 }
 
 #[cfg(test)]
