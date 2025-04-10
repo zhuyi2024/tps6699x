@@ -9,6 +9,7 @@ use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
+use embedded_usb_pd::pdinfo::AltMode;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::interrupt::{self, InterruptController};
@@ -318,6 +319,12 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_user_vid_status(port).await
+    }
+
+    /// Get complete alt-mode status
+    pub async fn get_alt_mode_status(&mut self, port: PortId) -> Result<AltMode, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_alt_mode_status(port).await
     }
 }
 
