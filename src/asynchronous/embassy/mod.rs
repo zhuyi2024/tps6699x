@@ -95,6 +95,23 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.controller.inner.lock().await
     }
 
+    /// Wrapper for `modify_interrupt_mask`
+    pub async fn modify_interrupt_mask(
+        &mut self,
+        port: PortId,
+        f: impl FnOnce(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
+        self.lock_inner().await.modify_interrupt_mask(port, f).await
+    }
+
+    /// Wrapper for `modify_interrupt_mask_all`
+    pub async fn modify_interrupt_mask_all(
+        &mut self,
+        f: impl Fn(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<(), Error<B::Error>> {
+        self.lock_inner().await.modify_interrupt_mask_all(f).await
+    }
+
     /// Wrapper for `get_port_status``
     pub async fn get_port_status(&mut self, port: PortId) -> Result<registers::field_sets::Status, Error<B::Error>> {
         self.lock_inner().await.get_port_status(port).await

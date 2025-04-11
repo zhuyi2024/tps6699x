@@ -143,6 +143,29 @@ impl<B: I2c> Tps6699x<B> {
         Ok(flags)
     }
 
+    /// Modify interrupt mask
+    pub async fn modify_interrupt_mask(
+        &mut self,
+        port: PortId,
+        f: impl FnOnce(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
+        let port = self.borrow_port(port)?;
+        let mut registers = port.into_registers();
+        registers.int_mask_bus_1().modify_async(|r| f(r)).await
+    }
+
+    /// Modify interrupt mask on all ports
+    pub async fn modify_interrupt_mask_all(
+        &mut self,
+        f: impl Fn(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<(), Error<B::Error>> {
+        for port in 0..self.num_ports() {
+            let port = PortId(port as u8);
+            let _ = self.modify_interrupt_mask(port, &f).await?;
+        }
+        Ok(())
+    }
+
     /// Get port status
     pub async fn get_port_status(&mut self, port: PortId) -> Result<registers::field_sets::Status, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().status().read_async().await
