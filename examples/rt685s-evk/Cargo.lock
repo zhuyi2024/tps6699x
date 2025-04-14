@@ -458,7 +458,7 @@ dependencies = [
  "fixed",
  "mimxrt600-fcb 0.2.2",
  "mimxrt633s-pac",
- "mimxrt685s-pac 0.4.0",
+ "mimxrt685s-pac",
  "nb 1.1.0",
  "paste",
  "rand_core",
@@ -890,19 +890,6 @@ dependencies = [
 
 [[package]]
 name = "mimxrt685s-pac"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db596b75e551fa89b118bd11301bc21eb4ff6a1e95580e68aba121fb9befa659"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "critical-section",
- "defmt 0.3.100",
- "vcell",
-]
-
-[[package]]
-name = "mimxrt685s-pac"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c0b80e5add9dc74500acbb1ca70248e237d242b77988631e41db40a225f3a40"
@@ -1228,7 +1215,6 @@ dependencies = [
  "embedded-usb-pd",
  "futures",
  "mimxrt600-fcb 0.1.0",
- "mimxrt685s-pac 0.1.6",
  "panic-probe",
  "rand",
  "static_cell",
