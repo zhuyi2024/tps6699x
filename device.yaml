@@ -528,7 +528,7 @@ PowerPathStatus:
         name: PpIntVbusSw
         Disabled: 0x0
         DisabledFault: 0x1
-        Enabled: 0x2
+        EnabledOutput: 0x2
         Unknown: catch_all
     PbIntVbusSw:
       base: uint
@@ -545,8 +545,7 @@ PowerPathStatus:
         name: PpExtVbusSw
         Disabled: 0x0
         DisabledFault: 0x1
-        EnabledOutput: 0x2
-        EnabledInput: 0x4
+        EnabledInput: 0x3
         Unknown: catch_all
     PbExtVbusSw:
       base: uint
