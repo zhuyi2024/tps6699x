@@ -9,6 +9,7 @@ use embassy_time::{with_timeout, Delay, Duration};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
+use embedded_usb_pd::pdinfo::AltMode;
 use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::interrupt::{self, InterruptController};
@@ -92,6 +93,23 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Locks the inner device
     async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
         self.controller.inner.lock().await
+    }
+
+    /// Wrapper for `modify_interrupt_mask`
+    pub async fn modify_interrupt_mask(
+        &mut self,
+        port: PortId,
+        f: impl FnOnce(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
+        self.lock_inner().await.modify_interrupt_mask(port, f).await
+    }
+
+    /// Wrapper for `modify_interrupt_mask_all`
+    pub async fn modify_interrupt_mask_all(
+        &mut self,
+        f: impl Fn(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
+    ) -> Result<(), Error<B::Error>> {
+        self.lock_inner().await.modify_interrupt_mask_all(f).await
     }
 
     /// Wrapper for `get_port_status``
@@ -288,6 +306,42 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     pub async fn get_boot_flags(&mut self) -> Result<registers::boot_flags::BootFlags, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_boot_flags().await
+    }
+
+    /// Get DP status
+    pub async fn get_dp_status(&mut self, port: PortId) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_dp_status(port).await
+    }
+
+    /// Get Intel VID status
+    pub async fn get_intel_vid(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::IntelVidStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_intel_vid_status(port).await
+    }
+
+    /// Get USB status
+    pub async fn get_usb_status(&mut self, port: PortId) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_usb_status(port).await
+    }
+
+    /// Get user VID status
+    pub async fn get_user_vid(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_user_vid_status(port).await
+    }
+
+    /// Get complete alt-mode status
+    pub async fn get_alt_mode_status(&mut self, port: PortId) -> Result<AltMode, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_alt_mode_status(port).await
     }
 }
 
