@@ -24,6 +24,11 @@ pub async fn interrupt_task<const N: usize, M: RawMutex, B: I2c, INT: Wait + Inp
             if interrupt.process_interrupt(int).await.is_err() {
                 warn!("Error processing interrupt");
             }
+
+            if let Ok(true) = int.is_high() {
+                // Done handling pending interrupts
+                break;
+            }
         }
 
         // If the interrupt line is still asserted then we either had an error or interrupts are currently disabled
