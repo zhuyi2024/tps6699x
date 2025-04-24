@@ -31,7 +31,7 @@ type Interrupt<'a> = pd_controller::Interrupt<'a, NoopRawMutex, Bus<'a>>;
 
 #[embassy_executor::task]
 async fn interrupt_task(mut int_in: Input<'static>, mut interrupt: Interrupt<'static>) {
-    pd_controller::task::interrupt_task(&mut int_in, [&mut interrupt]).await;
+    pd_controller::task::interrupt_task(&mut int_in, [&mut interrupt].as_mut_slice()).await;
 }
 
 #[embassy_executor::main]
