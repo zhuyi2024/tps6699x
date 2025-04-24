@@ -10,9 +10,9 @@ use crate::{error, warn};
 const INTERRUPT_BACKOFF_MS: u64 = 100;
 
 /// Task to process all given interrupts
-pub async fn interrupt_task<const N: usize, M: RawMutex, B: I2c, INT: Wait + InputPin>(
+pub async fn interrupt_task<M: RawMutex, B: I2c, INT: Wait + InputPin>(
     int: &mut INT,
-    mut interrupts: [&mut Interrupt<'_, M, B>; N],
+    interrupts: &mut [&mut Interrupt<'_, M, B>],
 ) {
     loop {
         if int.wait_for_low().await.is_err() {
@@ -20,7 +20,7 @@ pub async fn interrupt_task<const N: usize, M: RawMutex, B: I2c, INT: Wait + Inp
             continue;
         }
 
-        for interrupt in &mut interrupts {
+        for interrupt in &mut *interrupts {
             if interrupt.process_interrupt(int).await.is_err() {
                 warn!("Error processing interrupt");
             }
