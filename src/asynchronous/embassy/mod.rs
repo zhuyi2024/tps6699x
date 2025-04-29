@@ -279,15 +279,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Enable or disable the given power path
     pub async fn enable_sink_path(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
         if enable {
-            self.execute_srdy(
-                port,
-                match port.0 {
-                    0 => Ok(SrdySwitch::PpExt1),
-                    1 => Ok(SrdySwitch::PpExt2),
-                    _ => PdError::InvalidPort.into(),
-                }?,
-            )
-            .await?;
+            self.execute_srdy(port, SrdySwitch::AutoConfig).await?;
         } else {
             self.execute_sryr(port).await?;
         }
