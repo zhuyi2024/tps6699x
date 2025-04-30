@@ -8,7 +8,7 @@ use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::Tps6699x;
 use crate::command::*;
-use crate::{error, registers as regs, Mode, PORT0};
+use crate::{error, info, registers as regs, Mode, PORT0};
 
 impl<B: I2c> Tps6699x<B> {
     /// Sends a command without verifying that it is valid
@@ -52,6 +52,7 @@ impl<B: I2c> Tps6699x<B> {
                 .await?
                 .command()
         {
+            error!("send_command: Unrecognized Command");
             return PdError::UnrecognizedCommand.into();
         }
 
@@ -73,12 +74,14 @@ impl<B: I2c> Tps6699x<B> {
         data: Option<&mut [u8]>,
     ) -> Result<ReturnValue, Error<B::Error>> {
         if !self.check_command_complete(port).await? {
+            error!("check_command_complete: Busy");
             return PdError::Busy.into();
         }
 
         if let Some(ref data) = data {
             if data.len() > regs::REG_DATA1_LEN - 1 {
                 // Data length too long
+                error!("check_command_complete: Data too long");
                 return PdError::InvalidParams.into();
             }
         }
@@ -91,12 +94,14 @@ impl<B: I2c> Tps6699x<B> {
             .read_register(regs::REG_DATA1, (regs::REG_DATA1_LEN * 8) as u32, &mut buf)
             .await?;
 
-        let ret = ReturnValue::try_from(buf[0]).map_err(Error::Pd)?;
+        info!("check_command_complete: buf[0]: {:?}", buf[0]);
+        let return_code = buf[0] & 0x0F;
+        let ret = ReturnValue::try_from(return_code).map_err(Error::Pd)?;
 
         // Overwrite return value
-        if let Some(data) = data {
+        /*if let Some(data) = data {
             data.copy_from_slice(&buf[1..=data.len()]);
-        }
+        }*/
 
         Ok(ret)
     }
