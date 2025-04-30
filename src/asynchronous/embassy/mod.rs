@@ -259,7 +259,13 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         .await;
         if result.is_err() {
             error!("Command {:#?} timed out", cmd);
-            return PdError::Timeout.into();
+            // See if there's a definite error we can read
+            let mut inner = self.lock_inner().await;
+            return match inner.read_command_result(port, None).await? {
+                ReturnValue::Rejected => PdError::Rejected,
+                _ => PdError::Timeout,
+            }
+            .into();
         }
 
         result.unwrap()

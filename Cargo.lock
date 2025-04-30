@@ -368,7 +368,7 @@ dependencies = [
 [[package]]
 name = "embedded-usb-pd"
 version = "0.1.0"
-source = "git+https://github.com/OpenDevicePartnership/embedded-usb-pd#cb7f59b68587c67358d8fee4d215739be3488636"
+source = "git+https://github.com/OpenDevicePartnership/embedded-usb-pd#b8948c96b8c8e920c837307d30653cfd74cf80cd"
 dependencies = [
  "bitfield",
  "defmt 0.3.100",
