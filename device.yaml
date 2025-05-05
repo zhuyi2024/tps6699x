@@ -339,7 +339,7 @@ IntMaskBus1:
   override:
     type: register
     address: 0x16
-    reset_value: 0x0000000F000000CD33380A
+    reset_value: 0x0000000F000000CD30380A
     access: RW
 
 IntClearBus1:
