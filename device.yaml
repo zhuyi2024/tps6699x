@@ -886,15 +886,6 @@ PortControl:
       base: bool
       start: 22
       description: Enable fast role swap
-    VconnCurrentLimit:
-      base: uint
-      start: 23
-      end: 24
-      description: Vconn current limit
-      conversion:
-        name: VconnCurrentLimit
-        Current410ma: 0x0
-        Current590ma: 0x1
     ChargerAdvertiseEnable:
       base: uint
       start: 26
@@ -923,6 +914,16 @@ PortControl:
         Bc12: 0x1
         Reserved: 0x2
         Bc12Proprietary: 0x3
+    VconnCurrentLimit:
+      base: uint
+      start: 43
+      end: 45
+      description: Vconn current limit
+      conversion:
+        name: VconnCurrentLimit
+        Current410ma: 0x0
+        Current590ma: 0x1
+        Other: catch_all
 
 ActivePdoContract:
   type: register
