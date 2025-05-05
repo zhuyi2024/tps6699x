@@ -903,17 +903,6 @@ PortControl:
       base: bool
       start: 29
       description: Disable USB data
-    ChargerDetectEnable:
-      base: uint
-      start: 30
-      end: 32
-      description: Enable legacy charger detection
-      conversion:
-        name: ChargerDetect
-        NoDetect: 0x0
-        Bc12: 0x1
-        Reserved: 0x2
-        Bc12Proprietary: 0x3
     VconnCurrentLimit:
       base: uint
       start: 43
