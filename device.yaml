@@ -795,15 +795,6 @@ SystemConfig:
       start: 103
       end: 105
       description: Source Policy Mode
-    WaitForNgpio:
-      base: bool
-      start: 110
-      description: Wait for nGPIO from battery charger
-    DeadBatteryAutoClear:
-      base: uint
-      start: 111
-      end: 118
-      description: Moisture Detection State
 
 PortControl:
   type: register
@@ -896,19 +887,6 @@ PortControl:
       base: bool
       start: 22
       description: Enable fast role swap
-    ChargerAdvertiseEnable:
-      base: uint
-      start: 26
-      end: 29
-      description: Configure types of legacy chargers to emulate
-      conversion:
-        name: ChargerAdvertise
-        NoCharger: 0x0
-        Bc12CdpCharger: 0x1
-        Bc12DcpCharger: 0x2
-        DcpAuto1: 0x5
-        DcpAuto2: 0x6
-        Reserved: catch_all
     UsbDisable:
       base: bool
       start: 29
