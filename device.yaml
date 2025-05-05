@@ -585,7 +585,7 @@ SystemConfig:
   address: 0x27
   access: RW
   size_bits: 119
-  reset_value: 0x000000000000000034003318671205
+  reset_value: 0x00000000000000000010198C338905
   description: Global system configuration
   fields:
     PaVconnConfig:
@@ -800,7 +800,7 @@ PortControl:
   address: 0x29
   access: RW
   size_bits: 64
-  reset_value: 0x00C1C051
+  reset_value: 0x000006000041C311
   description: Port control
   fields:
     TypecCurrent:
