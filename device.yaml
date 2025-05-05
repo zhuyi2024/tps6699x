@@ -143,10 +143,6 @@ IntEventBus1:
       base: bool
       start: 23
       description: Power path status register changed
-    PowerStatusUpdated:
-      base: bool
-      start: 24
-      description: Power status register changed
     DataStatusUpdated:
       base: bool
       start: 25
@@ -484,6 +480,10 @@ UsbStatus:
       base: bool
       start: 4
       description: USB4 mode active on plug
+    VproEntryFailed:
+      base: bool
+      start: 5
+      description: vPro mode error. This bit is asserted ifa n error occurred while trying to enter the vPro mode.
     UsbReentryNeeded:
       base: bool
       start: 6
@@ -493,6 +493,11 @@ UsbStatus:
       start: 8
       end: 40
       description: Enter_USB Data Object (EUDO)
+    TbtEnterModeVdo:
+      base: uint
+      start: 40
+      end: 72
+      description: vPro mode VDO.
 
 PowerPathStatus:
   type: register
@@ -633,10 +638,11 @@ SystemConfig:
         Unused: 0x0
         Source: 0x1
         Sink: 0x2
-        SinkWaitSrdy: 0x3
+        SinkWaitSrdyNonDeadBattery: 0x3
         BiDirectional: 0x4
         BiDirectionalWaitSrdy: 0x5
-        Reserved: catch_all
+        SinkWaitSrdy: 0x6
+        BiDirectionalPpextDisabled: 0x7
     PbPpextVbusSwConfig:
       base: uint
       start: 19
@@ -780,6 +786,10 @@ SystemConfig:
       base: bool
       start: 82
       description: Stalls the PD in PTCH mode until a power connection is made that meets the needed conditions
+    AutoClrDeadBatteryFlagAndResetOnVin3v3:
+      base: bool
+      start: 86
+      description: On detecting VIN_3V3, auto clear the dead battery flag and reset the connection on the source port to update PD contract negotiated when the battery was dead
     SourcePolicyMode:
       base: uint
       start: 103
@@ -913,6 +923,17 @@ PortControl:
         Current410ma: 0x0
         Current590ma: 0x1
         Other: catch_all
+    ActiveDbgChannel:
+      base: uint
+      start: 45
+      end: 47
+      description: SBU Channel Control
+      conversion:
+        name: ActiveDbgChannel
+        Dbg: 0x0
+        SbRxTx: 0x1
+        Aux: 0x2
+        Open: 0x3
 
 ActivePdoContract:
   type: register
@@ -945,7 +966,7 @@ ActiveRdoContract:
       base: uint
       start: 0
       end: 32
-      description: Active PDO
+      description: Active RDO
     SourceEprModeDo:
       base: uint
       start: 32
@@ -956,11 +977,11 @@ ActiveRdoContract:
       start: 64
       end: 96
       description: Sink EPR mode data object
-    Reserved:
+    AcceptedActiveRdo:
       base: uint
       start : 96
       end: 128
-      description: Reserved, just here to make sure that the result read size is correct
+      description: Accepted active RDO contract
 
 PdStatus:
   type: register
