@@ -15,7 +15,7 @@ Mode:
     Mode:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Controller operation mode
 
 CustomerUse:
@@ -29,7 +29,7 @@ CustomerUse:
     CustomerUse:
       base: uint
       start: 0
-      end: 63
+      end: 64
       description: Controller operation mode
 
 Cmd1:
@@ -43,7 +43,7 @@ Cmd1:
     Command:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Command value
 
 Version:
@@ -57,7 +57,7 @@ Version:
     Version:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Boot FW version
 
 # These are better named int_event_i2c*, but device_driver has issues breaking those names up
@@ -491,7 +491,7 @@ UsbStatus:
     EnterUsbDataObject:
       base: uint
       start: 8
-      end: 39
+      end: 40
       description: Enter_USB Data Object (EUDO)
 
 PowerPathStatus:
@@ -766,7 +766,7 @@ SystemConfig:
     Port2I2c2TargetAddress:
       base: uint
       start: 72
-      end: 78
+      end: 80
       description: Target address for Port 2 on I2C2s
     VsysPreventsHighPower:
       base: bool
@@ -935,12 +935,12 @@ ActivePdoContract:
     ActivePdo:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Active PDO
     FirstPdoControl:
       base: uint
       start: 32
-      end: 41
+      end: 42
       description: Bits 20-29 of the first PDO
 
 ActiveRdoContract:
@@ -954,22 +954,22 @@ ActiveRdoContract:
     ActiveRdo:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Active PDO
     SourceEprModeDo:
       base: uint
       start: 32
-      end: 63
+      end: 64
       description: Source EPR mode data object
     SinkEprModeDo:
       base: uint
       start: 64
-      end: 95
+      end: 96
       description: Sink EPR mode data object
     Reserved:
       base: uint
       start : 96
-      end: 127
+      end: 128
       description: Reserved, just here to make sure that the result read size is correct
 
 PdStatus:
@@ -1190,15 +1190,15 @@ IntelVidStatus:
     TbtEnterModeData:
       base: uint
       start: 40
-      end: 55
+      end: 56
       description: Data for TBT Enter mode message
     TbtModeDataRxSop:
       base: uint
       start: 56
-      end: 71
+      end: 72
       description: Data for Discover Modes response
     TbtModeDataRxSopPrime:
       base: uint
       start: 72
-      end: 87
+      end: 88
       description: Data for Discover Modes (SOP')
