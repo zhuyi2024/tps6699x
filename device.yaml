@@ -15,7 +15,7 @@ Mode:
     Mode:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Controller operation mode
 
 CustomerUse:
@@ -29,7 +29,7 @@ CustomerUse:
     CustomerUse:
       base: uint
       start: 0
-      end: 63
+      end: 64
       description: Controller operation mode
 
 Cmd1:
@@ -43,7 +43,7 @@ Cmd1:
     Command:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Command value
 
 Version:
@@ -57,7 +57,7 @@ Version:
     Version:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Boot FW version
 
 # These are better named int_event_i2c*, but device_driver has issues breaking those names up
@@ -143,10 +143,6 @@ IntEventBus1:
       base: bool
       start: 23
       description: Power path status register changed
-    PowerStatusUpdated:
-      base: bool
-      start: 24
-      description: Power status register changed
     DataStatusUpdated:
       base: bool
       start: 25
@@ -339,7 +335,7 @@ IntMaskBus1:
   override:
     type: register
     address: 0x16
-    reset_value: 0x0000000F000000CD33380A
+    reset_value: 0x0000000F000000CD30380A
     access: RW
 
 IntClearBus1:
@@ -484,6 +480,10 @@ UsbStatus:
       base: bool
       start: 4
       description: USB4 mode active on plug
+    VproEntryFailed:
+      base: bool
+      start: 5
+      description: vPro mode error. This bit is asserted ifa n error occurred while trying to enter the vPro mode.
     UsbReentryNeeded:
       base: bool
       start: 6
@@ -491,8 +491,13 @@ UsbStatus:
     EnterUsbDataObject:
       base: uint
       start: 8
-      end: 39
+      end: 40
       description: Enter_USB Data Object (EUDO)
+    TbtEnterModeVdo:
+      base: uint
+      start: 40
+      end: 72
+      description: vPro mode VDO.
 
 PowerPathStatus:
   type: register
@@ -585,7 +590,7 @@ SystemConfig:
   address: 0x27
   access: RW
   size_bits: 119
-  reset_value: 0x000000000000000034003318671205
+  reset_value: 0x00000000000000000010198C338905
   description: Global system configuration
   fields:
     PaVconnConfig:
@@ -633,10 +638,11 @@ SystemConfig:
         Unused: 0x0
         Source: 0x1
         Sink: 0x2
-        SinkWaitSrdy: 0x3
+        SinkWaitSrdyNonDeadBattery: 0x3
         BiDirectional: 0x4
         BiDirectionalWaitSrdy: 0x5
-        Reserved: catch_all
+        SinkWaitSrdy: 0x6
+        BiDirectionalPpextDisabled: 0x7
     PbPpextVbusSwConfig:
       base: uint
       start: 19
@@ -766,7 +772,7 @@ SystemConfig:
     Port2I2c2TargetAddress:
       base: uint
       start: 72
-      end: 78
+      end: 80
       description: Target address for Port 2 on I2C2s
     VsysPreventsHighPower:
       base: bool
@@ -780,27 +786,22 @@ SystemConfig:
       base: bool
       start: 82
       description: Stalls the PD in PTCH mode until a power connection is made that meets the needed conditions
+    AutoClrDeadBatteryFlagAndResetOnVin3v3:
+      base: bool
+      start: 86
+      description: On detecting VIN_3V3, auto clear the dead battery flag and reset the connection on the source port to update PD contract negotiated when the battery was dead
     SourcePolicyMode:
       base: uint
       start: 103
       end: 105
       description: Source Policy Mode
-    WaitForNgpio:
-      base: bool
-      start: 110
-      description: Wait for nGPIO from battery charger
-    DeadBatteryAutoClear:
-      base: uint
-      start: 111
-      end: 118
-      description: Moisture Detection State
 
 PortControl:
   type: register
   address: 0x29
   access: RW
   size_bits: 64
-  reset_value: 0x00C1C051
+  reset_value: 0x000006000041C311
   description: Port control
   fields:
     TypecCurrent:
@@ -886,43 +887,31 @@ PortControl:
       base: bool
       start: 22
       description: Enable fast role swap
+    UsbDisable:
+      base: bool
+      start: 29
+      description: Disable USB data
     VconnCurrentLimit:
       base: uint
-      start: 23
-      end: 24
+      start: 43
+      end: 45
       description: Vconn current limit
       conversion:
         name: VconnCurrentLimit
         Current410ma: 0x0
         Current590ma: 0x1
-    ChargerAdvertiseEnable:
+        Other: catch_all
+    ActiveDbgChannel:
       base: uint
-      start: 26
-      end: 29
-      description: Configure types of legacy chargers to emulate
+      start: 45
+      end: 47
+      description: SBU Channel Control
       conversion:
-        name: ChargerAdvertise
-        NoCharger: 0x0
-        Bc12CdpCharger: 0x1
-        Bc12DcpCharger: 0x2
-        DcpAuto1: 0x5
-        DcpAuto2: 0x6
-        Reserved: catch_all
-    UsbDisable:
-      base: bool
-      start: 29
-      description: Disable USB data
-    ChargerDetectEnable:
-      base: uint
-      start: 30
-      end: 32
-      description: Enable legacy charger detection
-      conversion:
-        name: ChargerDetect
-        NoDetect: 0x0
-        Bc12: 0x1
-        Reserved: 0x2
-        Bc12Proprietary: 0x3
+        name: ActiveDbgChannel
+        Dbg: 0x0
+        SbRxTx: 0x1
+        Aux: 0x2
+        Open: 0x3
 
 ActivePdoContract:
   type: register
@@ -935,12 +924,12 @@ ActivePdoContract:
     ActivePdo:
       base: uint
       start: 0
-      end: 31
+      end: 32
       description: Active PDO
     FirstPdoControl:
       base: uint
       start: 32
-      end: 41
+      end: 42
       description: Bits 20-29 of the first PDO
 
 ActiveRdoContract:
@@ -954,23 +943,23 @@ ActiveRdoContract:
     ActiveRdo:
       base: uint
       start: 0
-      end: 31
-      description: Active PDO
+      end: 32
+      description: Active RDO
     SourceEprModeDo:
       base: uint
       start: 32
-      end: 63
+      end: 64
       description: Source EPR mode data object
     SinkEprModeDo:
       base: uint
       start: 64
-      end: 95
+      end: 96
       description: Sink EPR mode data object
-    Reserved:
+    AcceptedActiveRdo:
       base: uint
       start : 96
-      end: 127
-      description: Reserved, just here to make sure that the result read size is correct
+      end: 128
+      description: Accepted active RDO contract
 
 PdStatus:
   type: register
@@ -1190,15 +1179,15 @@ IntelVidStatus:
     TbtEnterModeData:
       base: uint
       start: 40
-      end: 55
+      end: 56
       description: Data for TBT Enter mode message
     TbtModeDataRxSop:
       base: uint
       start: 56
-      end: 71
+      end: 72
       description: Data for Discover Modes response
     TbtModeDataRxSopPrime:
       base: uint
       start: 72
-      end: 87
+      end: 88
       description: Data for Discover Modes (SOP')
