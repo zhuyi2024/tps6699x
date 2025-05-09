@@ -377,10 +377,10 @@ impl<Context> Decode<Context> for TfuqReturnValue {
 
 /// Timeout for completion of SRDY command, determined by experimentation
 #[allow(dead_code)]
-pub(crate) const SRDY_TIMEOUT_MS: u32 = 250;
+pub(crate) const SRDY_TIMEOUT_MS: u32 = 500;
 /// Timeout for completion of SRYR command, determined by experimentation
 #[allow(dead_code)]
-pub(crate) const SRYR_TIMEOUT_MS: u32 = 250;
+pub(crate) const SRYR_TIMEOUT_MS: u32 = 500;
 /// Srdy switch to enable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

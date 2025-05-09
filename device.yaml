@@ -95,6 +95,10 @@ IntEventBus1:
       base: bool
       start: 7
       description: Source capabilities updated
+    SinkReady:
+      base: bool
+      start: 8
+      description: Sink ready
     Overcurrent:
       base: bool
       start: 9
