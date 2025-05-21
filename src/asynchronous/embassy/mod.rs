@@ -306,7 +306,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
         trace!("retimer_force_pwr: {}", enable);
         let mut args = TrigArgs {
-            v_gpio_edge:TRIG_VGPIO_EDGE_FALLING,
+            v_gpio_edge: TRIG_VGPIO_EDGE_FALLING,
             v_gpio: TRIG_VGPIO_RETIMER_SOC_OVR_FORCE_PWR_EVENT,
         };
 
