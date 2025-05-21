@@ -429,6 +429,12 @@ pub struct TfudArgs {
 pub(crate) const TRIG_TIMEOUT_MS: u32 = 500;
 #[allow(dead_code)]
 pub(crate) const TRIG_ARGS_LEN: usize = 2;
+#[allow(dead_code)]
+pub(crate) const TRIG_VGPIO_RETIMER_SOC_OVR_FORCE_PWR_EVENT: u8 = 0x2A;
+#[allow(dead_code)]
+pub(crate) const TRIG_VGPIO_EDGE_FALLING: u8 = 0;
+#[allow(dead_code)]
+pub(crate) const TRIG_VGPIO_EDGE_RISING: u8 = 1;
 #[derive(Debug, Decode, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TrigArgs {
