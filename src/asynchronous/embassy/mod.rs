@@ -2,6 +2,7 @@
 use core::iter::zip;
 use core::sync::atomic::AtomicBool;
 
+use bincode::config;
 use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
