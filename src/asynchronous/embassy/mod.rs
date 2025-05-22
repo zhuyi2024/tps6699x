@@ -306,7 +306,11 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
         trace!("retimer_force_pwr: {}", enable);
         let args = TrigArgs {
-            v_gpio_edge: if enable { TRIG_VGPIO_EDGE_RISING } else { TRIG_VGPIO_EDGE_FALLING },
+            v_gpio_edge: if enable {
+                TRIG_VGPIO_EDGE_RISING
+            } else {
+                TRIG_VGPIO_EDGE_FALLING
+            },
             v_gpio: TRIG_VGPIO_RETIMER_SOC_OVR_FORCE_PWR_EVENT,
         };
 
@@ -315,7 +319,8 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         bincode::encode_into_slice(args, &mut args_buf, config::standard().with_fixed_int_encoding())
             .expect("Failed to encode trig args");
 
-        self.execute_command(port, Command::Trig, TRIG_TIMEOUT_MS, Some(&args_buf), None)
+        let _ = self
+            .execute_command(port, Command::Trig, TRIG_TIMEOUT_MS, Some(&args_buf), None)
             .await;
 
         embassy_time::Timer::after(Duration::from_millis(50)).await;
