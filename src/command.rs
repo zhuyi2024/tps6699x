@@ -429,17 +429,48 @@ pub struct TfudArgs {
 pub(crate) const TRIG_TIMEOUT_MS: u32 = 500;
 #[allow(dead_code)]
 pub(crate) const TRIG_ARGS_LEN: usize = 2;
-#[allow(dead_code)]
-pub(crate) const TRIG_VGPIO_RETIMER_SOC_OVR_FORCE_PWR_EVENT: u8 = 0x2A;
-#[allow(dead_code)]
-pub(crate) const TRIG_VGPIO_EDGE_FALLING: u8 = 0;
-#[allow(dead_code)]
-pub(crate) const TRIG_VGPIO_EDGE_RISING: u8 = 1;
-#[derive(Debug, Decode, Encode, Clone, Copy, PartialEq, Eq)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
+pub enum TrigVgpioCmd {
+    FaultInputPort1 = 0x21,
+    FaultInputPort2 = 0x22,
+    RetimerForcePwr = 0x2A,
+    RetimerHighCurrentContract = 0x2F,
+    I3cMasterIrq = 0x38,
+    Mreset = 0x45,
+}
+
+impl Encode for TrigVgpioCmd {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let val = *self as u8;
+        Encode::encode(&val, encoder)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
+pub enum TrigVgpioEdge {
+    /// Trig Vgpio falling edge
+    FallingEdge = 0,
+    /// Trig Vgpio rising edge
+    RisingEdge = 1,
+}
+
+impl Encode for TrigVgpioEdge {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        let val = *self as u8;
+        Encode::encode(&val, encoder)
+    }
+}
+
+#[derive(Debug, Encode, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TrigArgs {
-    pub v_gpio_edge: u8,
-    pub v_gpio: u8,
+    pub v_gpio_edge: TrigVgpioEdge,
+    pub v_gpio: TrigVgpioCmd,
 }
 
 #[cfg(test)]
