@@ -302,26 +302,38 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         Ok(())
     }
 
-    /// Enable or disable the given power path
-    pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
-        trace!("retimer_force_pwr: {}", enable);
-
+    /// Trigger virtual gpios
+    async fn virtual_gpio_trigger(
+        &mut self,
+        port: PortId,
+        edge: TrigVgpioEdge,
+        cmd: TrigVgpioCmd,
+    ) -> Result<ReturnValue, Error<B::Error>> {
         let args = TrigArgs {
-            v_gpio_edge: if enable {
-                TrigVgpioEdge::RisingEdge
-            } else {
-                TrigVgpioEdge::RisingEdge
-            },
-            v_gpio: TrigVgpioCmd::RetimerForcePwr,
+            v_gpio_edge: edge,
+            v_gpio: cmd,
         };
-
         let mut args_buf = [0; TRIG_ARGS_LEN];
 
         bincode::encode_into_slice(args, &mut args_buf, config::standard().with_fixed_int_encoding()).unwrap();
 
-        let _ = self
-            .execute_command(port, Command::Trig, TRIG_TIMEOUT_MS, Some(&args_buf), None)
-            .await;
+        self.execute_command(port, Command::Trig, TRIG_TIMEOUT_MS, Some(&args_buf), None)
+            .await
+    }
+
+    /// Force retimer power on or off
+    pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+        trace!("retimer_force_pwr: {}", enable);
+
+        if enable {
+            let _ = self
+                .virtual_gpio_trigger(port, TrigVgpioEdge::RisingEdge, TrigVgpioCmd::RetimerForcePwr)
+                .await;
+        } else {
+            let _ = self
+                .virtual_gpio_trigger(port, TrigVgpioEdge::FallingEdge, TrigVgpioCmd::RetimerForcePwr)
+                .await;
+        }
 
         embassy_time::Timer::after(Duration::from_millis(50)).await;
         Ok(())
