@@ -325,17 +325,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
         trace!("retimer_force_pwr: {}", enable);
 
-        if enable {
-            let _ = self
-                .virtual_gpio_trigger(port, TrigVgpioEdge::RisingEdge, TrigVgpioCmd::RetimerForcePwr)
-                .await;
+        let edge = if enable {
+            TrigVgpioEdge::RisingEdge
         } else {
-            let _ = self
-                .virtual_gpio_trigger(port, TrigVgpioEdge::FallingEdge, TrigVgpioCmd::RetimerForcePwr)
-                .await;
-        }
+            TrigVgpioEdge::FallingEdge
+        };
+
+        self.virtual_gpio_trigger(port, edge, TrigVgpioCmd::RetimerForcePwr)
+            .await?;
 
         embassy_time::Timer::after(Duration::from_millis(50)).await;
+
         Ok(())
     }
 
