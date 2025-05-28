@@ -10,9 +10,9 @@ use embedded_usb_pd::{Error, PdError};
 use super::interrupt::InterruptController;
 use crate::command::{ReturnValue, TfudArgs, TfuiArgs, TfuqBlockStatus};
 use crate::fw_update::{
-    State, APP_CONFIG_BLOCK_INDEX, DATA_BLOCK_LEN, DATA_BLOCK_METADATA_LEN, DATA_BLOCK_START_INDEX, HEADER_BLOCK_INDEX,
-    HEADER_BLOCK_LEN, HEADER_BLOCK_OFFSET, HEADER_METADATA_LEN, HEADER_METADATA_OFFSET, IMAGE_ID_LEN, MAX_METADATA_LEN,
-    TFUD_BURST_WRITE_DELAY_MS, TFUI_BURST_WRITE_DELAY_MS, UPDATE_CHUNK_LENGTH,
+    State, UpdateConfig, APP_CONFIG_BLOCK_INDEX, DATA_BLOCK_LEN, DATA_BLOCK_METADATA_LEN, DATA_BLOCK_START_INDEX,
+    HEADER_BLOCK_INDEX, HEADER_BLOCK_LEN, HEADER_BLOCK_OFFSET, HEADER_METADATA_LEN, HEADER_METADATA_OFFSET,
+    IMAGE_ID_LEN, MAX_METADATA_LEN, TFUD_BURST_WRITE_DELAY_MS, TFUI_BURST_WRITE_DELAY_MS, UPDATE_CHUNK_LENGTH,
 };
 use crate::stream::*;
 use crate::{debug, error, info, trace, warn, PORT0};
@@ -104,11 +104,26 @@ async fn abort_fw_update<T: UpdateTarget>(controllers: &mut [&mut T], delay: &mu
 pub struct BorrowedUpdater<T: UpdateTarget> {
     /// Phantom target
     _target: PhantomData<T>,
+    /// Update configuration
+    config: UpdateConfig,
 }
 
 impl<T: UpdateTarget> Default for BorrowedUpdater<T> {
     fn default() -> Self {
-        Self { _target: PhantomData }
+        Self {
+            _target: PhantomData,
+            config: UpdateConfig::default(),
+        }
+    }
+}
+
+impl<T: UpdateTarget> BorrowedUpdater<T> {
+    /// Create a new updater
+    pub fn with_config(config: UpdateConfig) -> Self {
+        Self {
+            _target: PhantomData,
+            config,
+        }
     }
 }
 
@@ -128,7 +143,7 @@ impl<T: UpdateTarget> BorrowedUpdater<T> {
             }
         }
 
-        Ok(BorrowedUpdaterInProgress::new())
+        Ok(BorrowedUpdaterInProgress::new(self.config.clone()))
     }
 }
 
@@ -148,10 +163,12 @@ pub struct BorrowedUpdaterInProgress<T: UpdateTarget> {
     block_args: Option<TfudArgs>,
     /// Phantom target
     _target: PhantomData<T>,
+    /// Update configuration
+    config: UpdateConfig,
 }
 
 impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
-    fn new() -> Self {
+    fn new(config: UpdateConfig) -> Self {
         Self {
             stream: Stream::Seeking(SeekingStream::new(0, HEADER_METADATA_OFFSET)),
             state: State::UpdateArgs,
@@ -160,6 +177,7 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
             image_size: 0,
             block_args: None,
             _target: PhantomData,
+            config,
         }
     }
 
@@ -390,8 +408,12 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
 
         if read_result.is_complete() {
             // We have the full header metadata
-            let (args, _) = bincode::decode_from_slice(&self.args_buffer, config::standard().with_fixed_int_encoding())
-                .map_err(|_| PdError::Serialize)?;
+            let (mut args, _): (TfuiArgs, _) =
+                bincode::decode_from_slice(&self.args_buffer, config::standard().with_fixed_int_encoding())
+                    .map_err(|_| PdError::Serialize)?;
+
+            // Override broadcast address if specified
+            args.broadcast_u16_address = self.config.broadcast_addr.unwrap_or(args.broadcast_u16_address);
             self.update_args = Some(args);
             self.fw_update_init(controllers, delay).await?;
             trace!("Got update args: {:#?}", self.update_args);
@@ -450,8 +472,13 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
 
         if read_result.is_complete() {
             // We have the full header metadata
-            let (args, _) = bincode::decode_from_slice(&self.args_buffer, config::standard().with_fixed_int_encoding())
-                .map_err(|_| PdError::Serialize)?;
+            let (mut args, _): (TfudArgs, _) =
+                bincode::decode_from_slice(&self.args_buffer, config::standard().with_fixed_int_encoding())
+                    .map_err(|_| PdError::Serialize)?;
+
+            // Override broadcast address if specified
+            args.broadcast_u16_address = self.config.broadcast_addr.unwrap_or(args.broadcast_u16_address);
+
             self.block_args = Some(args);
             Ok(self.block_args)
         } else {
@@ -632,6 +659,7 @@ pub async fn perform_fw_update_borrowed<T: UpdateTarget>(
     controllers: &mut [&mut T],
     interrupt_guards: &mut [Option<T::Guard>],
     delay: &mut impl DelayNs,
+    config: UpdateConfig,
     pd_fw_bytes: &[u8],
 ) -> Result<(), Error<T::BusError>> {
     // Need two sets of interrupt guards for each controller
@@ -639,7 +667,7 @@ pub async fn perform_fw_update_borrowed<T: UpdateTarget>(
         return Err(PdError::InvalidParams.into());
     }
 
-    let mut updater = BorrowedUpdater::default();
+    let mut updater = BorrowedUpdater::with_config(config);
     let half = interrupt_guards.len() / 2;
 
     // Disable all interrupts while we're entering FW update mode
@@ -795,9 +823,15 @@ mod test {
         let mut guards = [const { None }; 2];
         let fw_mock = &generate_mock_fw();
 
-        perform_fw_update_borrowed(&mut controllers, &mut guards, &mut delay, fw_mock)
-            .await
-            .unwrap();
+        perform_fw_update_borrowed(
+            &mut controllers,
+            &mut guards,
+            &mut delay,
+            UpdateConfig::default(),
+            fw_mock,
+        )
+        .await
+        .unwrap();
     }
 
     /// Test return value of write_bytes when the update is complete
@@ -848,7 +882,14 @@ mod test {
         let fw_mock = &generate_mock_fw();
 
         assert_eq!(
-            perform_fw_update_borrowed(&mut controllers, &mut guards, &mut delay, fw_mock).await,
+            perform_fw_update_borrowed(
+                &mut controllers,
+                &mut guards,
+                &mut delay,
+                UpdateConfig::default(),
+                fw_mock,
+            )
+            .await,
             Err(Error::Pd(PdError::InvalidParams))
         );
     }
