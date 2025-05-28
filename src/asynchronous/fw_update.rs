@@ -101,6 +101,8 @@ async fn abort_fw_update<T: UpdateTarget>(controllers: &mut [&mut T], delay: &mu
 }
 
 /// Initializes the FW update process
+///
+/// All supplied controllers are updated in parallel using burst writes
 pub struct BorrowedUpdater<T: UpdateTarget> {
     /// Phantom target
     _target: PhantomData<T>,
@@ -119,6 +121,10 @@ impl<T: UpdateTarget> BorrowedUpdater<T> {
         controllers: &mut [&mut T],
         delay: &mut impl DelayNs,
     ) -> Result<BorrowedUpdaterInProgress<T>, Error<T::BusError>> {
+        if controllers.is_empty() {
+            return Err(PdError::InvalidParams.into());
+        }
+
         for (i, controller) in controllers.iter_mut().enumerate() {
             debug!("Controller {}: Entering FW update mode", i);
             if let Err(e) = controller.fw_update_mode_enter(delay).await {
@@ -133,6 +139,8 @@ impl<T: UpdateTarget> BorrowedUpdater<T> {
 }
 
 /// Handles writing FW and completing the update process
+///
+/// All supplied controllers are updated in parallel using burst writes
 pub struct BorrowedUpdaterInProgress<T: UpdateTarget> {
     /// Stream
     stream: Stream,
@@ -169,6 +177,10 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
         controllers: &mut [&mut T],
         delay: &mut impl DelayNs,
     ) -> Result<(), Error<T::BusError>> {
+        if controllers.is_empty() {
+            return Err(PdError::InvalidParams.into());
+        }
+
         for (i, controller) in controllers.iter_mut().enumerate() {
             debug!("Controller {}: Initializing FW update", i);
 
@@ -190,21 +202,26 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
     }
 
     /// Send data to all controllers on the burst write address
+    ///
+    /// Since all controllers are listening on the same burst write address,
+    /// we only use the first supplied controller to actually do the write.
     async fn fw_update_burst_write(
         &mut self,
         controllers: &mut [&mut T],
         data: &[u8],
     ) -> Result<(), Error<T::BusError>> {
-        for (i, controller) in controllers.iter_mut().enumerate() {
-            trace!("Controller {}: Sending burst write", i);
-            let update_args = self.update_args.ok_or(Error::Pd(PdError::InvalidParams))?;
-            if let Err(e) = controller
-                .fw_update_burst_write(update_args.broadcast_u16_address as u8, data)
-                .await
-            {
-                debug!("Controller {}: Failed to send burst write", i);
-                return Err(e);
-            }
+        if controllers.is_empty() {
+            return Err(PdError::InvalidParams.into());
+        }
+
+        trace!("Controllers: Sending burst write");
+        let update_args = self.update_args.ok_or(Error::Pd(PdError::InvalidParams))?;
+        if let Err(e) = controllers[0]
+            .fw_update_burst_write(update_args.broadcast_u16_address as u8, data)
+            .await
+        {
+            debug!("Controllers: Failed to send burst write");
+            return Err(e);
         }
 
         Ok(())
@@ -217,6 +234,10 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
         delay: &mut impl DelayNs,
         block_index: usize,
     ) -> Result<(), Error<T::BusError>> {
+        if controllers.is_empty() {
+            return Err(PdError::InvalidParams.into());
+        }
+
         for (i, controller) in controllers.iter_mut().enumerate() {
             debug!("Controller {}: Validating stream", i);
             match controller.fw_update_validate_stream(delay, block_index).await {
@@ -244,6 +265,10 @@ impl<T: UpdateTarget> BorrowedUpdaterInProgress<T> {
         delay: &mut impl DelayNs,
         args: &TfudArgs,
     ) -> Result<(), Error<T::BusError>> {
+        if controllers.is_empty() {
+            return Err(PdError::InvalidParams.into());
+        }
+
         for (i, controller) in controllers.iter_mut().enumerate() {
             debug!("Controller {}: Streaming data block", i);
             if controller.fw_update_stream_data(delay, args).await.is_err() {
