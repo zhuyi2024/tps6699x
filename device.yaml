@@ -98,7 +98,7 @@ IntEventBus1:
     SinkReady:
       base: bool
       start: 8
-      description: Sink ready
+      description: Asserts under an implicit contract or an explicit contract when PS_RDY has been received
     Overcurrent:
       base: bool
       start: 9
@@ -147,10 +147,6 @@ IntEventBus1:
       base: bool
       start: 23
       description: Power path status register changed
-    PowerStatusUpdated:
-      base: bool
-      start: 24
-      description: Power status register changed
     DataStatusUpdated:
       base: bool
       start: 25
