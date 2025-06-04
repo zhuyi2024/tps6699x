@@ -57,9 +57,9 @@ impl<B: I2c> Tps6699x<B> {
             .await?
             .command();
 
-        match status {
-            val if val == Command::Success as u32 => Ok(true),
-            val if val == Command::Invalid as u32 => Err(PdError::UnrecognizedCommand.into()),
+        match Command::try_from(status).map_err(Error::Pd)? {
+            Command::Success => Ok(true),
+            Command::Invalid => Err(PdError::UnrecognizedCommand.into()),
             _ => Err(PdError::InvalidParams.into()),
         }
     }

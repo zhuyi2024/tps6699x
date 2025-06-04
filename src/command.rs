@@ -50,6 +50,20 @@ pub enum Command {
     Trig = u32_from_str("Trig"),
 }
 
+impl TryFrom<u32> for Command {
+    type Error = PdError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if Command::Success == value {
+            Ok(Command::Success)
+        } else if Command::Invalid == value {
+            Ok(Command::Invalid)
+        } else {
+            Err(PdError::InvalidParams)
+        }
+    }
+}
+
 impl Command {
     /// Returns the delay in microseconds before checking that the command was valid
     pub fn valid_check_delay_us(self) -> u32 {
