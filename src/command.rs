@@ -58,6 +58,26 @@ impl TryFrom<u32> for Command {
             Ok(Command::Success)
         } else if Command::Invalid == value {
             Ok(Command::Invalid)
+        } else if Command::Gaid == value {
+            Ok(Command::Gaid)
+        } else if Command::Tfus == value {
+            Ok(Command::Tfus)
+        } else if Command::Tfui == value {
+            Ok(Command::Tfui)
+        } else if Command::Tfuq == value {
+            Ok(Command::Tfuq)
+        } else if Command::Tfue == value {
+            Ok(Command::Tfue)
+        } else if Command::Tfud == value {
+            Ok(Command::Tfud)
+        } else if Command::Tfuc == value {
+            Ok(Command::Tfuc)
+        } else if Command::Srdy == value {
+            Ok(Command::Srdy)
+        } else if Command::Sryr == value {
+            Ok(Command::Sryr)
+        } else if Command::Trig == value {
+            Ok(Command::Trig)
         } else {
             Err(PdError::InvalidParams)
         }
