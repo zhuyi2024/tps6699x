@@ -7,6 +7,9 @@ use embedded_usb_pd::PdError;
 /// Length of a command
 const CMD_LEN: usize = 4;
 
+/// TaskResult is only defined for lower 4 bits
+pub const CMD_4CC_TASK_RETURN_CODE_MASK: u8 = 0x0F;
+
 /// Converts a 4-byte string into a u32
 const fn u32_from_str(value: &str) -> u32 {
     if value.len() != CMD_LEN {

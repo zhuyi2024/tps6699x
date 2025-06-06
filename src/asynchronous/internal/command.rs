@@ -97,7 +97,7 @@ impl<B: I2c> Tps6699x<B> {
             .read_register(regs::REG_DATA1, (regs::REG_DATA1_LEN * 8) as u32, &mut buf)
             .await?;
 
-        let return_code = buf[0] & 0x0F;
+        let return_code = buf[0] & CMD_4CC_TASK_RETURN_CODE_MASK;
         let ret = ReturnValue::try_from(return_code).map_err(Error::Pd)?;
         debug!("read_command_result: ret: {:?}", ret);
         // Overwrite return value
