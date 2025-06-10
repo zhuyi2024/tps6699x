@@ -85,14 +85,6 @@ impl TryFrom<u32> for Command {
             Err(PdError::InvalidParams)
         }
     }
-
-    /*fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            //Command::Success => Ok(Command::Success),
-            u32_from_str("!CMD") => Ok(Command::Invalid),
-            _ => Err(PdError::InvalidParams),
-        }
-    }*/
 }
 
 impl Command {
