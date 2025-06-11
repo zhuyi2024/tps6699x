@@ -8,11 +8,11 @@ use embedded_usb_pd::{Error, PdError, PortId};
 
 use super::Tps6699x;
 use crate::command::*;
-use crate::{error, registers as regs, Mode, PORT0};
+use crate::{debug, error, registers as regs, Mode, PORT0};
 
 impl<B: I2c> Tps6699x<B> {
     /// Sends a command without verifying that it is valid
-    pub async fn send_command_unchecked(
+    pub async fn send_command(
         &mut self,
         port: PortId,
         cmd: Command,
@@ -32,38 +32,21 @@ impl<B: I2c> Tps6699x<B> {
         Ok(())
     }
 
-    /// Sends a command, verifying that it is valid
-    pub async fn send_command(
-        &mut self,
-        delay: &mut impl DelayNs,
-        port: PortId,
-        cmd: Command,
-        data: Option<&[u8]>,
-    ) -> Result<(), Error<B::Error>> {
-        self.send_command_unchecked(port, cmd, data).await?;
-
-        delay.delay_us(cmd.valid_check_delay_us()).await;
-        if Command::Invalid
-            == self
-                .borrow_port(port)?
-                .into_registers()
-                .cmd_1()
-                .read_async()
-                .await?
-                .command()
-        {
-            return PdError::UnrecognizedCommand.into();
-        }
-
-        Ok(())
-    }
-
     /// Check if the command has completed
     pub async fn check_command_complete(&mut self, port: PortId) -> Result<bool, Error<B::Error>> {
-        let mut registers = self.borrow_port(port)?.into_registers();
-        let status = registers.cmd_1().read_async().await?.command();
+        let status = self
+            .borrow_port(port)?
+            .into_registers()
+            .cmd_1()
+            .read_async()
+            .await?
+            .command();
 
-        Ok(Command::Success == status)
+        match Command::try_from(status).map_err(Error::Pd)? {
+            Command::Success => Ok(true),
+            Command::Invalid => Err(PdError::UnrecognizedCommand.into()),
+            _ => Ok(false),
+        }
     }
 
     /// Read the result of a command
@@ -72,8 +55,16 @@ impl<B: I2c> Tps6699x<B> {
         port: PortId,
         data: Option<&mut [u8]>,
     ) -> Result<ReturnValue, Error<B::Error>> {
-        if !self.check_command_complete(port).await? {
-            return PdError::Busy.into();
+        match self.check_command_complete(port).await {
+            Ok(true) => {
+                debug!("command completed");
+            }
+            Ok(false) => {
+                return PdError::Busy.into();
+            }
+            Err(e) => {
+                return Err(e);
+            }
         }
 
         if let Some(ref data) = data {
@@ -91,8 +82,9 @@ impl<B: I2c> Tps6699x<B> {
             .read_register(regs::REG_DATA1, (regs::REG_DATA1_LEN * 8) as u32, &mut buf)
             .await?;
 
-        let ret = ReturnValue::try_from(buf[0]).map_err(Error::Pd)?;
-
+        let return_code = buf[0] & CMD_4CC_TASK_RETURN_CODE_MASK;
+        let ret = ReturnValue::try_from(return_code).map_err(Error::Pd)?;
+        debug!("read_command_result: ret: {:?}", ret);
         // Overwrite return value
         if let Some(data) = data {
             data.copy_from_slice(&buf[1..=data.len()]);
@@ -108,8 +100,7 @@ impl<B: I2c> Tps6699x<B> {
 
         bincode::encode_into_slice(args, &mut arg_bytes, config::standard().with_fixed_int_encoding())
             .map_err(|_| Error::Pd(PdError::Serialize))?;
-        self.send_command_unchecked(PORT0, Command::Gaid, Some(&arg_bytes))
-            .await?;
+        self.send_command(PORT0, Command::Gaid, Some(&arg_bytes)).await?;
 
         delay.delay_ms(RESET_DELAY_MS).await;
 
@@ -119,7 +110,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Enter firmware update mode
     pub async fn execute_tfus(&mut self, delay: &mut impl DelayNs) -> Result<(), Error<B::Error>> {
         // This is a controller-level command, shouldn't matter which port we use
-        self.send_command_unchecked(PORT0, Command::Tfus, None).await?;
+        self.send_command(PORT0, Command::Tfus, None).await?;
 
         delay.delay_ms(TFUS_DELAY_MS).await;
 
@@ -146,7 +137,7 @@ impl<B: I2c> Tps6699x<B> {
 
         // This is a controller-level command, shouldn't matter which port we use
         let port = PortId(0);
-        self.send_command(delay, port, Command::Tfuc, Some(&arg_bytes)).await?;
+        self.send_command(port, Command::Tfuc, Some(&arg_bytes)).await?;
 
         delay.delay_ms(RESET_DELAY_MS).await;
 
@@ -184,7 +175,6 @@ mod test {
         expected_cmd: Command,
         expected_data: Option<[u8; N]>,
     ) {
-        let mut delay = Delay {};
         let mut transactions = Vec::new();
 
         // Create data write if supplied
@@ -197,20 +187,12 @@ mod test {
             0x08,
             (expected_cmd as u32).to_le_bytes(),
         ));
-        // Check that the command was valid
-        transactions.push(create_register_read(expected_addr, 0x08, [0u8; 4]));
         tps6699x.bus.update_expectations(&transactions);
 
         if let Some(data) = expected_data {
-            tps6699x
-                .send_command(&mut delay, PORT0, expected_cmd, Some(&data))
-                .await
-                .unwrap();
+            tps6699x.send_command(PORT0, expected_cmd, Some(&data)).await.unwrap();
         } else {
-            tps6699x
-                .send_command(&mut delay, PORT0, expected_cmd, None)
-                .await
-                .unwrap();
+            tps6699x.send_command(PORT0, expected_cmd, None).await.unwrap();
         }
 
         tps6699x.bus.done();
@@ -340,7 +322,6 @@ mod test {
             0x08,
             (Command::Tfuc as u32).to_le_bytes(),
         ));
-        transactions.push(create_register_read(expected_addr, 0x08, [0; 4]));
         transactions.push(create_register_read(
             expected_addr,
             0x03,

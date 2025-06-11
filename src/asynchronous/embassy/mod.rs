@@ -232,8 +232,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     ) -> Result<ReturnValue, Error<B::Error>> {
         {
             let mut inner = self.lock_inner().await;
-            let mut delay = Delay;
-            inner.send_command(&mut delay, port, cmd, indata).await?;
+            inner.send_command(port, cmd, indata).await?;
         }
 
         self.wait_interrupt(false, |p, flags| p == port && flags.cmd_1_completed())
@@ -241,6 +240,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         {
             let mut inner = self.lock_inner().await;
             inner.read_command_result(port, outdata).await
+            // todo: map command result here
         }
     }
 
