@@ -20,6 +20,11 @@ use crate::{debug, error, info, trace, warn, PORT0};
 /// Size of args_buffer used for reading various metadata
 const BUFFER_LENGTH: usize = MAX_METADATA_LEN;
 
+/// TPS6699x burst write address 0, the default used by TI FW
+pub const BURST_WRITE_ADDR0: u16 = 0x77;
+/// TPS6699x burst write address 1
+pub const BURST_WRITE_ADDR1: u16 = 0x78;
+
 /// Trait for updating the firmware of a target device
 pub trait UpdateTarget: InterruptController {
     /// Enter FW update mode
