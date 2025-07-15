@@ -467,6 +467,25 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         let mut inner = self.lock_inner().await;
         inner.set_unconstrained_power(port, enable).await
     }
+
+    /// Get port config
+    pub async fn get_port_config(
+        &mut self,
+        port: PortId,
+    ) -> Result<registers::port_config::PortConfig, Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.get_port_config(port).await
+    }
+
+    /// Set port config
+    pub async fn set_port_config(
+        &mut self,
+        port: PortId,
+        config: registers::port_config::PortConfig,
+    ) -> Result<(), Error<B::Error>> {
+        let mut inner = self.lock_inner().await;
+        inner.set_port_config(port, config).await
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {
