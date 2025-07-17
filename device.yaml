@@ -1291,3 +1291,16 @@ RxAttnVdm:
       end: 71
       description: VDM data object, Rx Vdm data object 2
 
+RxAdo:
+  type: register
+  address: 0x74
+  access: RO
+  size_bits: 32
+  reset_value: 0x00000000
+  description: Received ADO
+  fields:
+    Ado:
+      base: uint
+      start: 0
+      end: 32
+      description: ADO
