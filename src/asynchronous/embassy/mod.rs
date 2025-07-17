@@ -500,7 +500,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
             Ok(Some(ado_raw.ado().try_into().map_err(Error::Pd)?))
         }
     }
-  
+
     /// Get Rx Attention Vdm
     pub async fn get_rx_attn_vdm(&mut self, port: PortId) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
@@ -514,7 +514,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     ) -> Result<registers::rx_other_vdm::RxOtherVdm, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_rx_other_vdm(port).await
-   }
+    }
 }
 
 impl<'a, M: RawMutex, B: I2c> interrupt::InterruptController for Tps6699x<'a, M, B> {

@@ -63,7 +63,7 @@ impl RxOtherVdm {
         self.0.num_of_valid_vdos() > 0 && self.0.num_of_valid_vdos() <= 7
     }
 
-    pub fn vdm_data(&mut self) -> [u32; MAX_VDO_COUNT] {
+    pub fn vdm_data(&self) -> [u32; MAX_VDO_COUNT] {
         [
             self.0.vdo1(),
             self.0.vdo2(),

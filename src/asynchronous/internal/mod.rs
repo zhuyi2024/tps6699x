@@ -489,7 +489,7 @@ impl<B: I2c> Tps6699x<B> {
     pub async fn get_rx_ado(&mut self, port: PortId) -> Result<registers::field_sets::RxAdo, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().rx_ado().read_async().await
     }
-  
+
     /// Get Rx attention Vdm
     pub async fn get_rx_attn_vdm(&mut self, port: PortId) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
         self.borrow_port(port)?
