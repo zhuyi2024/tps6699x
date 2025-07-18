@@ -1273,22 +1273,22 @@ RxAttnVdm:
     NumOfValidVdos:
       base: uint
       start: 0
-      end: 2
+      end: 3
       description: Number of valid Vdos received
     SeqNum:
       base: uint
       start: 5
-      end: 7
+      end: 8
       description: Increments by one every time this register is updated
     VdmHeader:
       base: uint
       start: 8
-      end: 39
+      end: 40
       description: VDM header, Rx Vdm data object 1
     Vdo:
       base: uint
       start: 40
-      end: 71
+      end: 72
       description: VDM data object, Rx Vdm data object 2
 
 RxAdo:
