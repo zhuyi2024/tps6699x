@@ -60,7 +60,7 @@ impl RxOtherVdm {
     }
 
     pub fn is_valid_other_vdm(&self) -> bool {
-        self.0.num_of_valid_vdos() > 0 && self.0.num_of_valid_vdos() <= MAX_VDO_COUNT
+        self.0.num_of_valid_vdos() > 0 && (self.0.num_of_valid_vdos() as usize) <= MAX_VDO_COUNT
     }
 
     pub fn vdm_data(&self) -> [u32; MAX_VDO_COUNT] {
