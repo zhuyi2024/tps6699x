@@ -4,6 +4,7 @@ use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use embedded_usb_pd::PdError;
 
+pub mod muxr;
 pub mod trig;
 
 /// Length of a command
@@ -62,6 +63,15 @@ pub enum Command {
 
     /// Trigger an Input GPIO event
     Trig = u32_from_str("Trig"),
+
+    /// Repeat transactions on I2C3m under certain conditions.
+    ///
+    /// # Input
+    /// [`muxr::Input`]
+    ///
+    /// # Output
+    /// [`ReturnValue`]
+    Muxr = u32_from_str("MuxR"),
 }
 
 impl TryFrom<u32> for Command {
@@ -94,6 +104,8 @@ impl TryFrom<u32> for Command {
             Ok(Command::Aneg)
         } else if Command::Trig == value {
             Ok(Command::Trig)
+        } else if Command::Muxr == value {
+            Ok(Command::Muxr)
         } else {
             Err(PdError::InvalidParams)
         }
@@ -113,6 +125,24 @@ impl Command {
             _ => 1000,
         }
     }
+
+    /// Returns the timeout in milliseconds for the command to complete.
+    pub const fn timeout_ms(self) -> u32 {
+        match self {
+            Command::Tfus => TFUS_DELAY_MS + 100,
+            Command::Tfui | Command::Tfue | Command::Tfud | Command::Tfuq => 200, // docs say 100ms, but 200ms is more reliable
+            Command::Gaid => RESET_DELAY_MS + 100,
+            Command::Srdy | Command::Sryr => 250, // determined by experimentation
+            Command::Trig => 500,                 // determined by experimentation
+            _ => 1000,
+        }
+    }
+
+    /// The timeout for a command. This is [`Self::timeout_ms`] converted to an [`embassy_time::Duration`].
+    #[cfg(feature = "embassy")]
+    pub const fn timeout(self) -> embassy_time::Duration {
+        embassy_time::Duration::from_millis(self.timeout_ms() as u64)
+    }
 }
 
 impl PartialEq<u32> for Command {
@@ -121,18 +151,27 @@ impl PartialEq<u32> for Command {
     }
 }
 
+/// A status code, often in the first byte of the `DATAX` register after a command is executed.
+///
+/// [`ReturnValue::Task0`] through [`ReturnValue::Task10`] are reserved for standard tasks and may be used by certain
+/// tasks for task-specific error codes. These should be treated as an error when encountered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(u8)]
 pub enum ReturnValue {
-    /// Success
+    /// Task completed successfully.
     Success = 0x00,
-    /// Timed-out or aborted with ABRT command
+
+    /// Task timed-out or aborted with `ABRT` command.
     Abort = 0x01,
+
     /// Rejected
     Rejected = 0x03,
-    /// RX buffer locked
+
+    /// Task rejected because the Rx Buffer was locked. This is for tasks that can require the PD controller to use the
+    /// Rx Buffer.
     RxLocked = 0x04,
+
     /// Task specific result
     Task0 = 0x05,
     /// Task specific result
@@ -229,24 +268,6 @@ impl Encode for ResetArgs {
 
 /// Delay for completion of TFUs command
 pub(crate) const TFUS_DELAY_MS: u32 = 500;
-/// Timeout for completion of TFUs command
-#[allow(dead_code)]
-pub(crate) const TFUS_TIMEOUT_MS: u32 = TFUS_DELAY_MS + 100;
-/// Timeout for completion of TFUi command, docs say 100ms, but 200ms is more reliable
-#[allow(dead_code)]
-pub(crate) const TFUI_TIMEOUT_MS: u32 = 200;
-/// Timeout for completion of TFUe command, docs say 100ms, but 200ms is more reliable
-#[allow(dead_code)]
-pub(crate) const TFUE_TIMEOUT_MS: u32 = 200;
-/// Timeout for completion of TFUd command, docs say 100ms, but 200ms is more reliable
-#[allow(dead_code)]
-pub(crate) const TFUD_TIMEOUT_MS: u32 = 200;
-/// Timeout for completion of TFUq command, docs say 100ms, but 200ms is more reliable
-#[allow(dead_code)]
-pub(crate) const TFUQ_TIMEOUT_MS: u32 = 200;
-/// Timeout for completion of reset
-#[allow(dead_code)]
-pub(crate) const RESET_TIMEOUT_MS: u32 = RESET_DELAY_MS + 100;
 /// Length of TFUi arguments
 #[allow(dead_code)]
 pub(crate) const TFUI_ARGS_LEN: usize = 8;
@@ -435,12 +456,6 @@ impl<Context> Decode<Context> for TfuqReturnValue {
     }
 }
 
-/// Timeout for completion of SRDY command, determined by experimentation
-#[allow(dead_code)]
-pub(crate) const SRDY_TIMEOUT_MS: u32 = 250;
-/// Timeout for completion of SRYR command, determined by experimentation
-#[allow(dead_code)]
-pub(crate) const SRYR_TIMEOUT_MS: u32 = 250;
 /// Srdy switch to enable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
