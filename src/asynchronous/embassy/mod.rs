@@ -17,6 +17,7 @@ use embedded_usb_pd::{Error, PdError, PortId};
 use super::interrupt::{self, InterruptController};
 use crate::asynchronous::internal;
 use crate::command::{muxr, trig, Command, ReturnValue, SrdySwitch};
+use crate::registers::autonegotiate_sink::AutoComputeSinkMaxVoltage;
 use crate::registers::field_sets::IntEventBus1;
 use crate::{error, registers, trace, Mode, MAX_SUPPORTED_PORTS};
 
@@ -150,6 +151,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         value: registers::autonegotiate_sink::AutonegotiateSink,
     ) -> Result<(), Error<B::Error>> {
         self.lock_inner().await.set_autonegotiate_sink(port, value).await
+    }
+
+    /// Modify the Autonegotiate Sink register (`0x37`).
+    pub async fn modify_autonegotiate_sink(
+        &mut self,
+        port: PortId,
+        f: impl FnOnce(
+            &mut registers::autonegotiate_sink::AutonegotiateSink,
+        ) -> registers::autonegotiate_sink::AutonegotiateSink,
+    ) -> Result<registers::autonegotiate_sink::AutonegotiateSink, Error<B::Error>> {
+        self.lock_inner().await.modify_autonegotiate_sink(port, f).await
     }
 
     /// Wrapper for `get_mode`
@@ -316,11 +328,11 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
 
     /// Trigger an `ANeg` command to autonegotiate the sink contract.
     pub async fn autonegotiate_sink(&mut self, port: PortId) -> Result<(), Error<B::Error>> {
-        self.execute_command(port, Command::Aneg, None, None)
-            .await?
-            .success_or(PdError::Failed)?;
-
-        Ok(())
+        match self.execute_command(port, Command::Aneg, None, None).await? {
+            ReturnValue::Success => Ok(()),
+            ReturnValue::Rejected => PdError::Rejected.into(),
+            _ => PdError::Failed.into(),
+        }
     }
 
     /// Trigger virtual gpios
@@ -512,6 +524,27 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     ) -> Result<registers::rx_other_vdm::RxOtherVdm, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_rx_other_vdm(port).await
+    }
+
+    /// Set autonegotiate sink max voltage. This may trigger a renegotiation
+    pub async fn set_autonegotiate_sink_max_voltage(
+        &mut self,
+        port: PortId,
+        voltage_mv: Option<u16>,
+    ) -> Result<(), Error<B::Error>> {
+        self.modify_autonegotiate_sink(port, |settings| {
+            if let Some(voltage) = voltage_mv {
+                settings.set_auto_compute_sink_max_voltage(AutoComputeSinkMaxVoltage::ProvidedByHost);
+                settings.set_auto_neg_max_voltage(voltage);
+            } else {
+                // Auto neg max voltage is ignored if this value is set
+                settings.set_auto_compute_sink_max_voltage(AutoComputeSinkMaxVoltage::ComputedByPdController);
+            }
+
+            settings.clone()
+        })
+        .await?;
+        self.autonegotiate_sink(port).await
     }
 }
 
