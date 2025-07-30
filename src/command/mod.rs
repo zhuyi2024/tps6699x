@@ -131,7 +131,7 @@ impl Command {
         match self {
             Command::Tfus => TFUS_DELAY_MS + 100,
             Command::Tfui | Command::Tfue | Command::Tfud | Command::Tfuq => 200, // docs say 100ms, but 200ms is more reliable
-            Command::Gaid => RESET_DELAY_MS + 100,
+            Command::Gaid | Command::Tfuc => RESET_DELAY_MS + 100,
             Command::Srdy | Command::Sryr => 250, // determined by experimentation
             Command::Trig => 500,                 // determined by experimentation
             _ => 1000,
