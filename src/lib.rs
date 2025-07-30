@@ -27,6 +27,31 @@ pub const PORT0: PortId = PortId(0);
 /// Port 1 constant
 pub const PORT1: PortId = PortId(1);
 
+/// Device error type to wrap common error with custom error type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum DeviceError<BE, T> {
+    /// Standard USB PD error
+    Error(embedded_usb_pd::Error<BE>),
+    /// Other error
+    Other(T),
+}
+
+impl<BE, T> From<embedded_usb_pd::Error<BE>> for DeviceError<BE, T> {
+    fn from(value: embedded_usb_pd::Error<BE>) -> Self {
+        DeviceError::Error(value)
+    }
+}
+
+impl<BE, T> From<DeviceError<BE, T>> for embedded_usb_pd::Error<BE> {
+    fn from(value: DeviceError<BE, T>) -> Self {
+        match value {
+            DeviceError::Error(e) => e,
+            DeviceError::Other(_) => embedded_usb_pd::Error::Pd(PdError::Failed),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
