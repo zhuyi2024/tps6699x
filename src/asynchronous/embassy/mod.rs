@@ -95,7 +95,7 @@ pub struct Tps6699x<'a, M: RawMutex, B: I2c> {
 
 impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Locks the inner device
-    async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
+    pub async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
         self.controller.inner.lock().await
     }
 
