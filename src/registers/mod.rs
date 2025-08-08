@@ -2,6 +2,7 @@ use device_driver;
 use embedded_usb_pd::type_c::ConnectionState;
 use embedded_usb_pd::{type_c, PdError};
 
+use crate::registers::field_sets::IntEventBus1;
 use crate::Mode;
 
 pub mod autonegotiate_sink;
@@ -90,5 +91,12 @@ impl From<Mode> for &str {
             Mode::App1 => "APP1",
             Mode::Wtpr => "WTPR",
         }
+    }
+}
+
+impl IntEventBus1 {
+    /// Create an IntEventBus1 with all bits set to 1
+    pub fn all() -> Self {
+        IntEventBus1::from([0xFF; 11])
     }
 }

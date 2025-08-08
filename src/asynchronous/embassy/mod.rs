@@ -1,4 +1,5 @@
 //! This module contains a high-level API uses embassy synchronization types
+use core::array::from_fn;
 use core::iter::zip;
 use core::sync::atomic::AtomicBool;
 
@@ -13,13 +14,14 @@ use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::ado::{self, Ado};
 use embedded_usb_pd::pdinfo::AltMode;
 use embedded_usb_pd::{pdo, Error, PdError, PortId};
+use itertools::izip;
 
 use super::interrupt::{self, InterruptController};
 use crate::asynchronous::internal;
 use crate::command::{muxr, trig, Command, ReturnValue, SrdySwitch};
 use crate::registers::autonegotiate_sink::AutoComputeSinkMaxVoltage;
 use crate::registers::field_sets::IntEventBus1;
-use crate::{error, registers, trace, DeviceError, Mode, MAX_SUPPORTED_PORTS};
+use crate::{error, registers, trace, warn, DeviceError, Mode, MAX_SUPPORTED_PORTS};
 
 pub mod fw_update;
 pub mod rx_src_caps;
@@ -233,22 +235,44 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         self.controller.num_ports
     }
 
-    /// Wait for an interrupt to occur that satisfies the given predicate
-    pub async fn wait_interrupt(
+    /// Wait for an interrupt to occur that matches any bits in the given mask.
+    pub async fn wait_interrupt_any(
         &mut self,
         clear_current: bool,
-        f: impl Fn(PortId, IntEventBus1) -> bool,
+        mask: [IntEventBus1; MAX_SUPPORTED_PORTS],
     ) -> [IntEventBus1; MAX_SUPPORTED_PORTS] {
+        // No interrupts set, return immediately because there is nothing to wait for
+        // Also log a warning because this likely isn't what the user intended
+        if mask == [IntEventBus1::new_zero(); MAX_SUPPORTED_PORTS] {
+            warn!("Interrupt masks are empty, returning immediately");
+            return [IntEventBus1::new_zero(); MAX_SUPPORTED_PORTS];
+        }
+
         if clear_current {
             self.controller.interrupt_waker.reset();
         }
 
+        let mut accumulated_flags = [IntEventBus1::new_zero(); MAX_SUPPORTED_PORTS];
         loop {
+            let mut done = false;
             let flags = self.controller.interrupt_waker.wait().await;
-            for (port, flag) in flags.iter().enumerate() {
-                if f(PortId(port as u8), *flag) {
-                    return flags;
+            for (&flags, &mask, accumulated) in izip!(flags.iter(), mask.iter(), accumulated_flags.iter_mut(),) {
+                *accumulated |= flags;
+                let consumed_flags = flags & mask;
+                if consumed_flags != IntEventBus1::new_zero() {
+                    done = true;
                 }
+            }
+
+            if done {
+                // Put back any unhandled interrupt flags for future processing
+                let unhandled = from_fn(|i| accumulated_flags[i] & !mask[i]);
+                if unhandled.iter().any(|&f| f != IntEventBus1::new_zero()) {
+                    // If there are unhandled flags, signal them for future processing
+                    trace!("Signaling unhandled interrupt flags: {:?}", unhandled);
+                    self.controller.interrupt_waker.signal(unhandled);
+                }
+                return from_fn(|i| accumulated_flags[i] & mask[i]);
             }
         }
     }
@@ -266,7 +290,20 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
             inner.send_command(port, cmd, indata).await?;
         }
 
-        self.wait_interrupt(false, |p, flags| p == port && flags.cmd_1_completed())
+        let mut cmd_complete = IntEventBus1::new_zero();
+        cmd_complete.set_cmd_1_completed(true);
+
+        let _flags = self
+            .wait_interrupt_any(
+                false,
+                from_fn(|i| {
+                    if i == port.0 as usize {
+                        cmd_complete
+                    } else {
+                        IntEventBus1::new_zero()
+                    }
+                }),
+            )
             .await;
         {
             let mut inner = self.lock_inner().await;
@@ -666,3 +703,120 @@ impl<M: RawMutex, B: I2c> Drop for InterruptGuard<'_, M, B> {
 }
 
 impl<M: RawMutex, B: I2c> interrupt::InterruptGuard for InterruptGuard<'_, M, B> {}
+
+#[cfg(test)]
+mod test {
+    use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+    use embedded_hal_mock::eh1::i2c::Mock;
+    use static_cell::StaticCell;
+
+    use super::*;
+    use crate::ADDR0;
+
+    /// Tests `wait_interrupt_any` with a mask for both ports.
+    #[tokio::test]
+    async fn test_wait_interrupt_any_both() {
+        static CONTROLLER: StaticCell<controller::Controller<NoopRawMutex, Mock>> = StaticCell::new();
+        let controller = CONTROLLER.init(controller::Controller::new_tps66994(Mock::new(&[]), ADDR0).unwrap());
+        let (mut pd, _interrupt) = controller.make_parts();
+
+        let mut port0 = IntEventBus1::new_zero();
+        port0.set_new_consumer_contract(true);
+        port0.set_sink_ready(true);
+        port0.set_cmd_1_completed(true);
+
+        let mut port1 = IntEventBus1::new_zero();
+        port1.set_plug_event(true);
+        port1.set_alert_message_received(true);
+
+        pd.controller.interrupt_waker.signal([port0, port1]);
+
+        let mut mask0 = IntEventBus1::new_zero();
+        mask0.set_cmd_1_completed(true);
+
+        let mut mask1 = IntEventBus1::new_zero();
+        mask1.set_plug_event(true);
+        mask1.set_alert_message_received(true);
+
+        let flags = pd.wait_interrupt_any(false, [mask0, mask1]).await;
+        assert_eq!(flags, [mask0, mask1]);
+
+        let mut unhandled0 = IntEventBus1::new_zero();
+        unhandled0.set_new_consumer_contract(true);
+        unhandled0.set_sink_ready(true);
+
+        let unhandled1 = IntEventBus1::new_zero();
+
+        // Should already be signaled
+        assert_eq!(
+            pd.controller.interrupt_waker.try_take().unwrap(),
+            [unhandled0, unhandled1]
+        );
+    }
+
+    /// Tests `wait_interrupt` with a mask for a single port.
+    #[tokio::test]
+    async fn test_wait_interrupt_any_single() {
+        static CONTROLLER: StaticCell<controller::Controller<NoopRawMutex, Mock>> = StaticCell::new();
+        let controller = CONTROLLER.init(controller::Controller::new_tps66994(Mock::new(&[]), ADDR0).unwrap());
+        let (mut pd, _interrupt) = controller.make_parts();
+
+        let mut port0 = IntEventBus1::new_zero();
+        port0.set_new_consumer_contract(true);
+        port0.set_sink_ready(true);
+        port0.set_cmd_1_completed(true);
+
+        let mut port1 = IntEventBus1::new_zero();
+        port1.set_plug_event(true);
+        port1.set_alert_message_received(true);
+
+        pd.controller.interrupt_waker.signal([port0, port1]);
+
+        let mut mask0 = IntEventBus1::new_zero();
+        mask0.set_cmd_1_completed(true);
+
+        let mask1 = IntEventBus1::new_zero();
+
+        let flags = pd.wait_interrupt_any(false, [mask0, mask1]).await;
+        assert_eq!(flags, [mask0, mask1]);
+
+        let mut unhandled0 = IntEventBus1::new_zero();
+        unhandled0.set_new_consumer_contract(true);
+        unhandled0.set_sink_ready(true);
+
+        let unhandled1 = port1;
+
+        // Should already be signaled
+        assert_eq!(
+            pd.controller.interrupt_waker.try_take().unwrap(),
+            [unhandled0, unhandled1]
+        );
+    }
+
+    /// Tests `wait_interrupt` with both masks set to zero.
+    #[tokio::test]
+    async fn test_wait_interrupt_any_zero_masks() {
+        static CONTROLLER: StaticCell<controller::Controller<NoopRawMutex, Mock>> = StaticCell::new();
+        let controller = CONTROLLER.init(controller::Controller::new_tps66994(Mock::new(&[]), ADDR0).unwrap());
+        let (mut pd, _interrupt) = controller.make_parts();
+
+        let mut port0 = IntEventBus1::new_zero();
+        port0.set_new_consumer_contract(true);
+        port0.set_sink_ready(true);
+        port0.set_cmd_1_completed(true);
+
+        let mut port1 = IntEventBus1::new_zero();
+        port1.set_plug_event(true);
+        port1.set_alert_message_received(true);
+
+        pd.controller.interrupt_waker.signal([port0, port1]);
+
+        let mask0 = IntEventBus1::new_zero();
+        let mask1 = IntEventBus1::new_zero();
+        let flags = pd.wait_interrupt_any(false, [mask0, mask1]).await;
+        assert_eq!(flags, [mask0, mask1]);
+
+        // Should already be signaled with nothing changed
+        assert_eq!(pd.controller.interrupt_waker.try_take().unwrap(), [port0, port1]);
+    }
+}
