@@ -587,7 +587,13 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
             settings.clone()
         })
         .await?;
-        self.autonegotiate_sink(port).await
+
+        // Trigger autonegotiate sink to apply the new max voltage
+        // This will result in a rejection if the port is not a sink, but this is expected
+        match self.autonegotiate_sink(port).await {
+            Err(Error::Pd(PdError::Rejected)) => Ok(()),
+            rest => rest,
+        }
     }
 
     /// Get Rx Source Caps
