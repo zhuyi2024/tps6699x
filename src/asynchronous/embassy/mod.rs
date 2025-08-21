@@ -18,7 +18,7 @@ use itertools::izip;
 
 use super::interrupt::{self, InterruptController};
 use crate::asynchronous::internal;
-use crate::command::{muxr, trig, Command, ReturnValue, SrdySwitch};
+use crate::command::{muxr, trig, vdms, Command, ReturnValue, SrdySwitch};
 use crate::registers::autonegotiate_sink::AutoComputeSinkMaxVoltage;
 use crate::registers::field_sets::IntEventBus1;
 use crate::{error, registers, trace, warn, DeviceError, Mode, MAX_SUPPORTED_PORTS};
@@ -465,6 +465,12 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     pub async fn execute_muxr(&mut self, port: PortId, input: muxr::Input) -> Result<ReturnValue, Error<B::Error>> {
         let indata = input.0.to_le_bytes();
         self.execute_command(port, Command::Muxr, Some(&indata), None).await
+    }
+
+    /// Execute the [`Command::VDMs`] command.
+    pub async fn send_vdms(&mut self, port: PortId, input: vdms::Input) -> Result<ReturnValue, Error<B::Error>> {
+        let indata = input.as_bytes();
+        self.execute_command(port, Command::VDMs, Some(indata), None).await
     }
 
     /// Reset the device.
