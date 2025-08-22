@@ -4,7 +4,7 @@ use bincode::config;
 use device_driver::AsyncRegisterInterface;
 use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
-use embedded_usb_pd::{Error, PdError, PortId};
+use embedded_usb_pd::{Error, LocalPortId, PdError};
 
 use super::Tps6699x;
 use crate::command::*;
@@ -14,7 +14,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Sends a command without verifying that it is valid
     pub async fn send_command(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         cmd: Command,
         data: Option<&[u8]>,
     ) -> Result<(), Error<B::Error>> {
@@ -33,7 +33,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Check if the command has completed
-    pub async fn check_command_complete(&mut self, port: PortId) -> Result<bool, Error<B::Error>> {
+    pub async fn check_command_complete(&mut self, port: LocalPortId) -> Result<bool, Error<B::Error>> {
         let status = self
             .borrow_port(port)?
             .into_registers()
@@ -52,7 +52,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Read the result of a command
     pub async fn read_command_result(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         data: Option<&mut [u8]>,
     ) -> Result<ReturnValue, Error<B::Error>> {
         match self.check_command_complete(port).await {
@@ -136,7 +136,7 @@ impl<B: I2c> Tps6699x<B> {
             .map_err(|_| Error::Pd(PdError::Serialize))?;
 
         // This is a controller-level command, shouldn't matter which port we use
-        let port = PortId(0);
+        let port = LocalPortId(0);
         self.send_command(port, Command::Tfuc, Some(&arg_bytes)).await?;
 
         delay.delay_ms(RESET_DELAY_MS).await;

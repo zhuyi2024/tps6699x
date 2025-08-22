@@ -6,12 +6,11 @@ use defmt::*;
 use embassy_embedded_hal::shared_bus::asynch::i2c::I2cDevice;
 use embassy_executor::Spawner;
 use embassy_imxrt::gpio::{Input, Inverter, Pull};
-use embassy_imxrt::i2c::master::{I2cMaster, Speed};
+use embassy_imxrt::i2c::master::I2cMaster;
 use embassy_imxrt::i2c::Async;
 use embassy_imxrt::{self, bind_interrupts, peripherals};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_sync::once_lock::OnceLock;
 use embassy_time::Delay;
 use mimxrt600_fcb::FlexSPIFlashConfigurationBlock;
 use static_cell::StaticCell;
@@ -40,10 +39,10 @@ async fn main(spawner: Spawner) {
     let p = embassy_imxrt::init(Default::default());
 
     let int_in = Input::new(p.PIO1_0, Pull::Up, Inverter::Disabled);
-    static BUS: OnceLock<Mutex<NoopRawMutex, I2cMaster<'static, Async>>> = OnceLock::new();
-    let bus = BUS.get_or_init(|| {
-        Mutex::new(I2cMaster::new_async(p.FLEXCOMM2, p.PIO0_18, p.PIO0_17, Irqs, Speed::Standard, p.DMA0_CH5).unwrap())
-    });
+    static BUS: StaticCell<Mutex<NoopRawMutex, I2cMaster<'static, Async>>> = StaticCell::new();
+    let bus = BUS.init(Mutex::new(
+        I2cMaster::new_async(p.FLEXCOMM2, p.PIO0_18, p.PIO0_17, Irqs, Default::default(), p.DMA0_CH5).unwrap(),
+    ));
 
     let device = I2cDevice::new(bus);
 

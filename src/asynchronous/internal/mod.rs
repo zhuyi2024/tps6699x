@@ -4,7 +4,7 @@ use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::pdinfo::AltMode;
 use embedded_usb_pd::pdo::source::Pdo;
 use embedded_usb_pd::pdo::ExpectedPdo;
-use embedded_usb_pd::{Error, PdError, PortId};
+use embedded_usb_pd::{Error, LocalPortId, PdError};
 
 use crate::registers::rx_src_caps::EPR_PDO_START_INDEX;
 use crate::{registers, DeviceError, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
@@ -107,7 +107,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get the I2C address for a port
-    fn port_addr(&self, port: PortId) -> Result<u8, Error<B::Error>> {
+    fn port_addr(&self, port: LocalPortId) -> Result<u8, Error<B::Error>> {
         if port.0 as usize >= self.num_ports {
             PdError::InvalidPort.into()
         } else {
@@ -121,7 +121,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Borrows the given port, providing exclusive access to it and therefore the underlying bus object
-    pub fn borrow_port(&mut self, port: PortId) -> Result<Port<'_, B>, Error<B::Error>> {
+    pub fn borrow_port(&mut self, port: LocalPortId) -> Result<Port<'_, B>, Error<B::Error>> {
         let addr = self.port_addr(port)?;
         Ok(Port {
             bus: &mut self.bus,
@@ -132,7 +132,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Clear interrupts on a port, returns asserted interrupts
     pub async fn clear_interrupt(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
         let p = self.borrow_port(port)?;
         let mut registers = p.into_registers();
@@ -149,7 +149,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Modify interrupt mask
     pub async fn modify_interrupt_mask(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
     ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
         let port = self.borrow_port(port)?;
@@ -163,21 +163,24 @@ impl<B: I2c> Tps6699x<B> {
         f: impl Fn(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
     ) -> Result<(), Error<B::Error>> {
         for port in 0..self.num_ports() {
-            let port = PortId(port as u8);
+            let port = LocalPortId(port as u8);
             let _ = self.modify_interrupt_mask(port, &f).await?;
         }
         Ok(())
     }
 
     /// Get port status
-    pub async fn get_port_status(&mut self, port: PortId) -> Result<registers::field_sets::Status, Error<B::Error>> {
+    pub async fn get_port_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::Status, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().status().read_async().await
     }
 
     /// Get active PDO contract
     pub async fn get_active_pdo_contract(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::ActivePdoContract, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
@@ -189,7 +192,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get active RDO contract
     pub async fn get_active_rdo_contract(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::ActiveRdoContract, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
@@ -201,7 +204,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get the Autonegotiate Sink register (`0x37`).
     pub async fn get_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::autonegotiate_sink::AutonegotiateSink, Error<B::Error>> {
         let mut buf = [0u8; registers::autonegotiate_sink::LEN];
         self.borrow_port(port)?
@@ -220,7 +223,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Set the Autonegotiate Sink register (`0x37`).
     pub async fn set_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         value: registers::autonegotiate_sink::AutonegotiateSink,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -237,7 +240,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Modify autonegotiate sink settings
     pub async fn modify_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(
             &mut registers::autonegotiate_sink::AutonegotiateSink,
         ) -> registers::autonegotiate_sink::AutonegotiateSink,
@@ -270,7 +273,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get customer use value
     pub async fn get_customer_use(&mut self) -> Result<u64, Error<B::Error>> {
         // This is a controller-level command, shouldn't matter which port we use
-        self.borrow_port(PortId(0))?
+        self.borrow_port(LocalPortId(0))?
             .into_registers()
             .customer_use()
             .read_async()
@@ -281,7 +284,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get power path status
     pub async fn get_power_path_status(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::PowerPathStatus, Error<B::Error>> {
         // This is a controller-level command, shouldn't matter which port we use
         self.borrow_port(port)?
@@ -292,14 +295,17 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get PD status
-    pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
+    pub async fn get_pd_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().pd_status().read_async().await
     }
 
     /// Get port control
     pub async fn get_port_control(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
@@ -311,7 +317,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Set port control
     pub async fn set_port_control(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         control: registers::field_sets::PortControl,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -345,7 +351,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Enable/disable sourcing on a given port
-    pub async fn enable_source(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn enable_source(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         let mut config = self.get_system_config().await?;
 
         let enable = if enable {
@@ -380,7 +386,10 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get DP status
-    pub async fn get_dp_status(&mut self, port: PortId) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
+    pub async fn get_dp_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
         let mut buf = [0u8; registers::dp_status::LEN];
         self.borrow_port(port)?
             .into_registers()
@@ -398,7 +407,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get Intel VID status
     pub async fn get_intel_vid_status(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::IntelVidStatus, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
@@ -408,14 +417,17 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get USB status
-    pub async fn get_usb_status(&mut self, port: PortId) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
+    pub async fn get_usb_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().usb_status().read_async().await
     }
 
     /// Get user VID status
     pub async fn get_user_vid_status(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
@@ -425,7 +437,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get complete alt-mode status
-    pub async fn get_alt_mode_status(&mut self, port: PortId) -> Result<AltMode, Error<B::Error>> {
+    pub async fn get_alt_mode_status(&mut self, port: LocalPortId) -> Result<AltMode, Error<B::Error>> {
         let dp_status = self.get_dp_status(port).await?;
         let usb_status = self.get_usb_status(port).await?;
         let user_vid_status = self.get_user_vid_status(port).await?;
@@ -443,14 +455,17 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get DP config
-    pub async fn get_dp_config(&mut self, port: PortId) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
+    pub async fn get_dp_config(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().dp_config().read_async().await
     }
 
     /// Set DP config
     pub async fn set_dp_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         config: registers::field_sets::DpConfig,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -463,7 +478,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Modify DP config settings
     pub async fn modify_dp_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::field_sets::DpConfig) -> registers::field_sets::DpConfig,
     ) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
         let port = self.borrow_port(port)?;
@@ -472,14 +487,17 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get Tbt config
-    pub async fn get_tbt_config(&mut self, port: PortId) -> Result<registers::field_sets::TbtConfig, Error<B::Error>> {
+    pub async fn get_tbt_config(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::TbtConfig, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().tbt_config().read_async().await
     }
 
     /// Set Tbt config
     pub async fn set_tbt_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         config: registers::field_sets::TbtConfig,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -490,7 +508,7 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Set unconstrained power on a port
-    pub async fn set_unconstrained_power(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn set_unconstrained_power(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         let mut control = self.get_port_control(port).await?;
         control.set_unconstrained_power(enable);
         self.set_port_control(port, control).await
@@ -499,7 +517,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get port config
     pub async fn get_port_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::port_config::PortConfig, Error<B::Error>> {
         let mut buf = [0u8; registers::port_config::LEN];
         self.borrow_port(port)?
@@ -517,7 +535,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Set port config
     pub async fn set_port_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         config: registers::port_config::PortConfig,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -532,12 +550,15 @@ impl<B: I2c> Tps6699x<B> {
     }
 
     /// Get Rx ADO
-    pub async fn get_rx_ado(&mut self, port: PortId) -> Result<registers::field_sets::RxAdo, Error<B::Error>> {
+    pub async fn get_rx_ado(&mut self, port: LocalPortId) -> Result<registers::field_sets::RxAdo, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().rx_ado().read_async().await
     }
 
     /// Get Rx attention Vdm
-    pub async fn get_rx_attn_vdm(&mut self, port: PortId) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
+    pub async fn get_rx_attn_vdm(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
         self.borrow_port(port)?
             .into_registers()
             .rx_attn_vdm()
@@ -548,7 +569,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get Rx other Vdm
     pub async fn get_rx_other_vdm(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::rx_other_vdm::RxOtherVdm, Error<B::Error>> {
         let mut buf = [0u8; registers::rx_other_vdm::LEN];
         self.borrow_port(port)?
@@ -568,7 +589,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Returns (num pdos placed in out_spr_pdos , num pdos placed in out_epr_pdos)
     pub async fn get_rx_src_caps(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         out_spr_pdos: &mut [Pdo],
         out_epr_pdos: &mut [Pdo],
     ) -> Result<(usize, usize), DeviceError<B::Error, ExpectedPdo>> {
@@ -609,7 +630,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Get Tx Identity
     pub async fn get_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::tx_identity::TxIdentity, Error<B::Error>> {
         let mut buf = [0u8; registers::tx_identity::LEN];
         self.borrow_port(port)?
@@ -627,7 +648,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Set Tx Identity
     pub async fn set_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         value: registers::tx_identity::TxIdentity,
     ) -> Result<(), Error<B::Error>> {
         self.borrow_port(port)?
@@ -644,7 +665,7 @@ impl<B: I2c> Tps6699x<B> {
     /// Modify Tx Identity settings
     pub async fn modify_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::tx_identity::TxIdentity) -> registers::tx_identity::TxIdentity,
     ) -> Result<registers::tx_identity::TxIdentity, Error<B::Error>> {
         let mut reg = self.get_tx_identity(port).await?;
@@ -682,7 +703,7 @@ mod test {
 
     async fn test_read_port<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
-        port_id: PortId,
+        port_id: LocalPortId,
         expected_addr: u8,
         reg: u8,
         expected: [u8; N],
@@ -703,7 +724,7 @@ mod test {
     /// Test that attempting to read more than the available number of bytes fails
     async fn test_read_port_overread<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
-        port_id: PortId,
+        port_id: LocalPortId,
         expected_addr: u8,
         reg: u8,
         expected: [u8; N],
@@ -728,7 +749,7 @@ mod test {
     /// Test that attempting to read less than the available number of bytes succeeds
     async fn test_read_port_underread<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
-        port_id: PortId,
+        port_id: LocalPortId,
         expected_addr: u8,
         reg: u8,
         expected: [u8; N],
@@ -754,7 +775,7 @@ mod test {
 
     async fn test_write_port<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
-        port_id: PortId,
+        port_id: LocalPortId,
         expected_addr: u8,
         reg: u8,
         expected: [u8; N],
@@ -772,7 +793,7 @@ mod test {
 
     async fn test_rw_port<const N: usize>(
         tps6699x: &mut Tps6699x<Mock>,
-        port_id: PortId,
+        port_id: LocalPortId,
         expected_addr: u8,
         reg: u8,
         expected: [u8; N],
@@ -790,7 +811,7 @@ mod test {
         Ok(())
     }
 
-    async fn test_rw_ports(tps6699x: &mut Tps6699x<Mock>, port_id: PortId, expected_addr: u8) {
+    async fn test_rw_ports(tps6699x: &mut Tps6699x<Mock>, port_id: LocalPortId, expected_addr: u8) {
         // No particular signifigance to these values, just testing a mix of values
         test_rw_port(tps6699x, port_id, expected_addr, 0x00, [0x01, 0x02])
             .await
@@ -823,7 +844,7 @@ mod test {
         test_rw_ports(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 
-    async fn test_clear_interrupt(tps6699x: &mut Tps6699x<Mock>, port: PortId, expected_addr: u8) {
+    async fn test_clear_interrupt(tps6699x: &mut Tps6699x<Mock>, port: LocalPortId, expected_addr: u8) {
         use registers::field_sets::IntEventBus1;
 
         // Create a fully asserted interrupt register
@@ -861,7 +882,7 @@ mod test {
         test_clear_interrupt(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 
-    async fn test_get_port_status(tps6699x: &mut Tps6699x<Mock>, port: PortId, expected_addr: u8) {
+    async fn test_get_port_status(tps6699x: &mut Tps6699x<Mock>, port: LocalPortId, expected_addr: u8) {
         use registers::field_sets::Status;
 
         let mut transactions = Vec::new();
@@ -894,7 +915,7 @@ mod test {
         test_get_port_status(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 
-    async fn test_get_active_pdo_contract(tps6699x: &mut Tps6699x<Mock>, port: PortId, expected_addr: u8) {
+    async fn test_get_active_pdo_contract(tps6699x: &mut Tps6699x<Mock>, port: LocalPortId, expected_addr: u8) {
         use registers::field_sets::ActivePdoContract;
 
         let mut transactions = Vec::new();
@@ -925,7 +946,7 @@ mod test {
         test_get_active_pdo_contract(&mut tps6699x, PORT1, PORT1_ADDR1).await;
     }
 
-    async fn test_get_active_rdo_contract(tps6699x: &mut Tps6699x<Mock>, port: PortId, expected_addr: u8) {
+    async fn test_get_active_rdo_contract(tps6699x: &mut Tps6699x<Mock>, port: LocalPortId, expected_addr: u8) {
         use registers::field_sets::ActiveRdoContract;
 
         let mut transactions = Vec::new();

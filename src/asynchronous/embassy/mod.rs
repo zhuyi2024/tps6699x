@@ -13,7 +13,7 @@ use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
 use embedded_usb_pd::ado::{self, Ado};
 use embedded_usb_pd::pdinfo::AltMode;
-use embedded_usb_pd::{pdo, Error, PdError, PortId};
+use embedded_usb_pd::{pdo, Error, LocalPortId, PdError};
 use itertools::izip;
 
 use super::interrupt::{self, InterruptController};
@@ -26,6 +26,7 @@ use crate::{error, registers, trace, warn, DeviceError, Mode, MAX_SUPPORTED_PORT
 pub mod fw_update;
 pub mod rx_src_caps;
 pub mod task;
+pub mod ucsi;
 
 pub mod controller {
     use super::*;
@@ -104,7 +105,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Wrapper for `modify_interrupt_mask`
     pub async fn modify_interrupt_mask(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::field_sets::IntEventBus1) -> registers::field_sets::IntEventBus1,
     ) -> Result<registers::field_sets::IntEventBus1, Error<B::Error>> {
         self.lock_inner().await.modify_interrupt_mask(port, f).await
@@ -119,14 +120,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Wrapper for `get_port_status``
-    pub async fn get_port_status(&mut self, port: PortId) -> Result<registers::field_sets::Status, Error<B::Error>> {
+    pub async fn get_port_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::Status, Error<B::Error>> {
         self.lock_inner().await.get_port_status(port).await
     }
 
     /// Wrapper for `get_active_pdo_contract`
     pub async fn get_active_pdo_contract(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::ActivePdoContract, Error<B::Error>> {
         self.lock_inner().await.get_active_pdo_contract(port).await
     }
@@ -134,7 +138,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Wrapper for `get_active_rdo_contract`
     pub async fn get_active_rdo_contract(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::ActiveRdoContract, Error<B::Error>> {
         self.lock_inner().await.get_active_rdo_contract(port).await
     }
@@ -142,7 +146,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get the Autonegotiate Sink register (`0x37`).
     pub async fn get_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::autonegotiate_sink::AutonegotiateSink, Error<B::Error>> {
         self.lock_inner().await.get_autonegotiate_sink(port).await
     }
@@ -150,7 +154,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Set the Autonegotiate Sink register (`0x37`).
     pub async fn set_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         value: registers::autonegotiate_sink::AutonegotiateSink,
     ) -> Result<(), Error<B::Error>> {
         self.lock_inner().await.set_autonegotiate_sink(port, value).await
@@ -159,7 +163,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Modify the Autonegotiate Sink register (`0x37`).
     pub async fn modify_autonegotiate_sink(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(
             &mut registers::autonegotiate_sink::AutonegotiateSink,
         ) -> registers::autonegotiate_sink::AutonegotiateSink,
@@ -185,20 +189,23 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Wrapper for `get_power_path_status`
     pub async fn get_power_path_status(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::PowerPathStatus, Error<B::Error>> {
         self.lock_inner().await.get_power_path_status(port).await
     }
 
     /// Wrapper for `get_pd_status`
-    pub async fn get_pd_status(&mut self, port: PortId) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
+    pub async fn get_pd_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::PdStatus, Error<B::Error>> {
         self.lock_inner().await.get_pd_status(port).await
     }
 
     /// Wrapper for `get_port_control`
     pub async fn get_port_control(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::PortControl, Error<B::Error>> {
         self.lock_inner().await.get_port_control(port).await
     }
@@ -206,7 +213,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Wrapper for `set_port_control`
     pub async fn set_port_control(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         control: registers::field_sets::PortControl,
     ) -> Result<(), Error<B::Error>> {
         self.lock_inner().await.set_port_control(port, control).await
@@ -226,7 +233,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Wrapper for `enable_source`
-    pub async fn enable_source(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn enable_source(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         self.lock_inner().await.enable_source(port, enable).await
     }
 
@@ -280,7 +287,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Execute the given command with no timeout
     async fn execute_command_no_timeout(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         cmd: Command,
         indata: Option<&[u8]>,
         outdata: Option<&mut [u8]>,
@@ -315,7 +322,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Execute the given command with a timeout determined by [`Command::timeout`].
     async fn execute_command(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         cmd: Command,
         indata: Option<&[u8]>,
         outdata: Option<&mut [u8]>,
@@ -336,17 +343,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         result.unwrap()
     }
 
-    async fn execute_srdy(&mut self, port: PortId, switch: SrdySwitch) -> Result<ReturnValue, Error<B::Error>> {
+    async fn execute_srdy(&mut self, port: LocalPortId, switch: SrdySwitch) -> Result<ReturnValue, Error<B::Error>> {
         let arg_bytes = [switch.into()];
         self.execute_command(port, Command::Srdy, Some(&arg_bytes), None).await
     }
 
-    async fn execute_sryr(&mut self, port: PortId) -> Result<ReturnValue, Error<B::Error>> {
+    async fn execute_sryr(&mut self, port: LocalPortId) -> Result<ReturnValue, Error<B::Error>> {
         self.execute_command(port, Command::Sryr, None, None).await
     }
 
     /// Enable or disable the given power path
-    pub async fn enable_sink_path(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn enable_sink_path(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         if enable {
             self.execute_srdy(
                 port,
@@ -365,7 +372,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Trigger an `ANeg` command to autonegotiate the sink contract.
-    pub async fn autonegotiate_sink(&mut self, port: PortId) -> Result<(), Error<B::Error>> {
+    pub async fn autonegotiate_sink(&mut self, port: LocalPortId) -> Result<(), Error<B::Error>> {
         match self.execute_command(port, Command::Aneg, None, None).await? {
             ReturnValue::Success => Ok(()),
             ReturnValue::Rejected => PdError::Rejected.into(),
@@ -376,7 +383,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Trigger virtual gpios
     async fn virtual_gpio_trigger(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         edge: trig::Edge,
         cmd: trig::Cmd,
     ) -> Result<ReturnValue, Error<B::Error>> {
@@ -389,7 +396,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Force retimer power on or off
-    pub async fn retimer_force_pwr(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn retimer_force_pwr(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         trace!("retimer_force_pwr: {}", enable);
 
         let edge = if enable {
@@ -407,7 +414,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Get retimer fw update state
-    pub async fn get_rt_fw_update_status(&mut self, port: PortId) -> Result<bool, Error<B::Error>> {
+    pub async fn get_rt_fw_update_status(&mut self, port: LocalPortId) -> Result<bool, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         let rt_fw_update_mode = inner.get_intel_vid_status(port).await?.forced_tbt_mode();
         trace!("rt_fw_update_mode: {}", rt_fw_update_mode);
@@ -415,7 +422,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// set retimer fw update state
-    pub async fn set_rt_fw_update_state(&mut self, port: PortId) -> Result<(), Error<B::Error>> {
+    pub async fn set_rt_fw_update_state(&mut self, port: LocalPortId) -> Result<(), Error<B::Error>> {
         // Force RT Pwr On
         self.retimer_force_pwr(port, true).await?;
 
@@ -427,7 +434,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// clear retimer fw update state
-    pub async fn clear_rt_fw_update_state(&mut self, port: PortId) -> Result<(), Error<B::Error>> {
+    pub async fn clear_rt_fw_update_state(&mut self, port: LocalPortId) -> Result<(), Error<B::Error>> {
         {
             let mut inner = self.lock_inner().await;
             let mut port_control = inner.get_port_control(port).await?;
@@ -442,7 +449,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// set retimer compliance
-    pub async fn set_rt_compliance(&mut self, port: PortId) -> Result<(), Error<B::Error>> {
+    pub async fn set_rt_compliance(&mut self, port: LocalPortId) -> Result<(), Error<B::Error>> {
         {
             // Force RT Pwr On
             self.retimer_force_pwr(port, true).await?;
@@ -457,18 +464,22 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Execute the [`Command::Dbfg`] command.
-    pub async fn execute_dbfg(&mut self, port: PortId) -> Result<ReturnValue, Error<B::Error>> {
+    pub async fn execute_dbfg(&mut self, port: LocalPortId) -> Result<ReturnValue, Error<B::Error>> {
         self.execute_command(port, Command::Dbfg, None, None).await
     }
 
     /// Execute the [`Command::Muxr`] command.
-    pub async fn execute_muxr(&mut self, port: PortId, input: muxr::Input) -> Result<ReturnValue, Error<B::Error>> {
+    pub async fn execute_muxr(
+        &mut self,
+        port: LocalPortId,
+        input: muxr::Input,
+    ) -> Result<ReturnValue, Error<B::Error>> {
         let indata = input.0.to_le_bytes();
         self.execute_command(port, Command::Muxr, Some(&indata), None).await
     }
 
     /// Execute the [`Command::VDMs`] command.
-    pub async fn send_vdms(&mut self, port: PortId, input: vdms::Input) -> Result<ReturnValue, Error<B::Error>> {
+    pub async fn send_vdms(&mut self, port: LocalPortId, input: vdms::Input) -> Result<ReturnValue, Error<B::Error>> {
         let indata = input.as_bytes();
         self.execute_command(port, Command::VDMs, Some(indata), None).await
     }
@@ -487,7 +498,10 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Get DP status
-    pub async fn get_dp_status(&mut self, port: PortId) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
+    pub async fn get_dp_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::dp_status::DpStatus, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_dp_status(port).await
     }
@@ -495,14 +509,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get Intel VID status
     pub async fn get_intel_vid(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::IntelVidStatus, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_intel_vid_status(port).await
     }
 
     /// Get USB status
-    pub async fn get_usb_status(&mut self, port: PortId) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
+    pub async fn get_usb_status(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::UsbStatus, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_usb_status(port).await
     }
@@ -510,20 +527,20 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get user VID status
     pub async fn get_user_vid(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::field_sets::UserVidStatus, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_user_vid_status(port).await
     }
 
     /// Get complete alt-mode status
-    pub async fn get_alt_mode_status(&mut self, port: PortId) -> Result<AltMode, Error<B::Error>> {
+    pub async fn get_alt_mode_status(&mut self, port: LocalPortId) -> Result<AltMode, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_alt_mode_status(port).await
     }
 
     /// Set unconstrained power on a port
-    pub async fn set_unconstrained_power(&mut self, port: PortId, enable: bool) -> Result<(), Error<B::Error>> {
+    pub async fn set_unconstrained_power(&mut self, port: LocalPortId, enable: bool) -> Result<(), Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.set_unconstrained_power(port, enable).await
     }
@@ -531,7 +548,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get port config
     pub async fn get_port_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::port_config::PortConfig, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_port_config(port).await
@@ -540,7 +557,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Set port config
     pub async fn set_port_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         config: registers::port_config::PortConfig,
     ) -> Result<(), Error<B::Error>> {
         let mut inner = self.lock_inner().await;
@@ -548,7 +565,10 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Get Rx ADO
-    pub async fn get_rx_ado(&mut self, port: PortId) -> Result<Option<Ado>, DeviceError<B::Error, ado::InvalidType>> {
+    pub async fn get_rx_ado(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<Option<Ado>, DeviceError<B::Error, ado::InvalidType>> {
         let mut inner = self.lock_inner().await;
         let ado_raw = inner.get_rx_ado(port).await.map_err(DeviceError::from)?;
 
@@ -561,7 +581,10 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Get Rx Attention Vdm
-    pub async fn get_rx_attn_vdm(&mut self, port: PortId) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
+    pub async fn get_rx_attn_vdm(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::RxAttnVdm, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_rx_attn_vdm(port).await
     }
@@ -569,7 +592,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get Rx Other Vdm
     pub async fn get_rx_other_vdm(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::rx_other_vdm::RxOtherVdm, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_rx_other_vdm(port).await
@@ -578,7 +601,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Set autonegotiate sink max voltage. This may trigger a renegotiation
     pub async fn set_autonegotiate_sink_max_voltage(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         voltage_mv: Option<u16>,
     ) -> Result<(), Error<B::Error>> {
         self.modify_autonegotiate_sink(port, |settings| {
@@ -605,7 +628,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get Rx Source Caps
     ///
     /// Returns (num_standard_pdos, num_epr_pdos).
-    pub async fn get_rx_src_caps(&mut self, port: PortId) -> Result<rx_src_caps::RxSrcCaps, Error<B::Error>> {
+    pub async fn get_rx_src_caps(&mut self, port: LocalPortId) -> Result<rx_src_caps::RxSrcCaps, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         let mut out_spr_pdos = [pdo::source::Pdo::default(); crate::registers::rx_src_caps::NUM_SPR_PDOS];
         let mut out_epr_pdos = [pdo::source::Pdo::default(); crate::registers::rx_src_caps::NUM_EPR_PDOS];
@@ -624,7 +647,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Get Tx Identity
     pub async fn get_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
     ) -> Result<registers::tx_identity::TxIdentity, Error<B::Error>> {
         self.lock_inner().await.get_tx_identity(port).await
     }
@@ -632,7 +655,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Set Tx Identity
     pub async fn set_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         value: registers::tx_identity::TxIdentity,
     ) -> Result<(), Error<B::Error>> {
         self.lock_inner().await.set_tx_identity(port, value).await
@@ -641,14 +664,17 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Modify the Tx Identity register (`0x47`).
     pub async fn modify_tx_identity(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::tx_identity::TxIdentity) -> registers::tx_identity::TxIdentity,
     ) -> Result<registers::tx_identity::TxIdentity, Error<B::Error>> {
         self.lock_inner().await.modify_tx_identity(port, f).await
     }
 
     /// Get DP config
-    pub async fn get_dp_config(&mut self, port: PortId) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
+    pub async fn get_dp_config(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
         inner.get_dp_config(port).await
     }
@@ -656,7 +682,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Set DP config
     pub async fn set_dp_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         config: registers::field_sets::DpConfig,
     ) -> Result<(), Error<B::Error>> {
         let mut inner = self.lock_inner().await;
@@ -666,7 +692,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Modify DP config settings
     pub async fn modify_dp_config(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         f: impl FnOnce(&mut registers::field_sets::DpConfig) -> registers::field_sets::DpConfig,
     ) -> Result<registers::field_sets::DpConfig, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
@@ -674,7 +700,7 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     }
 
     /// Execute the [`Command::Drst`] command.
-    pub async fn execute_drst(&mut self, port: PortId) -> Result<ReturnValue, Error<B::Error>> {
+    pub async fn execute_drst(&mut self, port: LocalPortId) -> Result<ReturnValue, Error<B::Error>> {
         self.execute_command(port, Command::Drst, None, None).await
     }
 }
@@ -719,7 +745,7 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
             let interrupts_enabled = self.controller.interrupts_enabled();
             let mut inner = self.lock_inner().await;
             for port in 0..inner.num_ports() {
-                let port_id = PortId(port as u8);
+                let port_id = LocalPortId(port as u8);
 
                 if !interrupts_enabled[port] {
                     trace!("Port{}: Interrupt for disabled", port);

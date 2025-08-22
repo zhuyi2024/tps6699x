@@ -1,6 +1,6 @@
 #![no_std]
 
-use embedded_usb_pd::{PdError, PortId};
+use embedded_usb_pd::{LocalPortId, PdError};
 
 pub mod asynchronous;
 pub mod command;
@@ -23,9 +23,9 @@ pub const TPS66993_NUM_PORTS: usize = 1;
 pub const MAX_SUPPORTED_PORTS: usize = 2;
 
 /// Port 0 constant
-pub const PORT0: PortId = PortId(0);
+pub const PORT0: LocalPortId = LocalPortId(0);
 /// Port 1 constant
-pub const PORT1: PortId = PortId(1);
+pub const PORT1: LocalPortId = LocalPortId(1);
 
 /// Device error type to wrap common error with custom error type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

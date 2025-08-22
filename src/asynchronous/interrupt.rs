@@ -1,6 +1,6 @@
 use core::future::Future;
 
-use embedded_usb_pd::{Error, PdError, PortId};
+use embedded_usb_pd::{Error, LocalPortId, PdError};
 
 use crate::MAX_SUPPORTED_PORTS;
 
@@ -24,7 +24,7 @@ pub trait InterruptController {
     #[allow(async_fn_in_trait)]
     async fn enable_interrupt_guarded(
         &mut self,
-        port: PortId,
+        port: LocalPortId,
         enabled: bool,
     ) -> Result<Self::Guard, Error<Self::BusError>> {
         if port.0 as usize >= MAX_SUPPORTED_PORTS {
