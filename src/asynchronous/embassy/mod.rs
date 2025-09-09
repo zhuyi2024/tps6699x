@@ -765,14 +765,14 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
                     _ => {}
                 }
 
-                let result = with_timeout(Duration::from_millis(200), inner.clear_interrupt(port_id)).await;
+                let result = with_timeout(Duration::from_millis(100), inner.clear_interrupt(port_id)).await;
                 match result {
                     Ok(res) => {
                         flags[port] |= res?;
                     }
                     Err(_) => {
                         error!("Port{}: clear_interrupt timeout", port);
-                        return PdError::Timeout.into();
+                        continue;
                     }
                 }
             }
