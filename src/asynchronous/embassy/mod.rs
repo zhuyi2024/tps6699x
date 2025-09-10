@@ -1,5 +1,6 @@
 //! This module contains a high-level API uses embassy synchronization types
 use core::array::from_fn;
+use core::future::Future;
 use core::iter::zip;
 use core::sync::atomic::AtomicBool;
 
@@ -98,8 +99,8 @@ pub struct Tps6699x<'a, M: RawMutex, B: I2c> {
 
 impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
     /// Locks the inner device
-    pub async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
-        self.controller.inner.lock().await
+    pub fn lock_inner(&mut self) -> impl Future<Output = MutexGuard<'_, M, internal::Tps6699x<B>>> {
+        self.controller.inner.lock()
     }
 
     /// Wrapper for `modify_interrupt_mask`
@@ -726,8 +727,8 @@ pub struct Interrupt<'a, M: RawMutex, B: I2c> {
 }
 
 impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
-    async fn lock_inner(&mut self) -> MutexGuard<'_, M, internal::Tps6699x<B>> {
-        self.controller.inner.lock().await
+    fn lock_inner(&mut self) -> impl Future<Output = MutexGuard<'_, M, internal::Tps6699x<B>>> {
+        self.controller.inner.lock()
     }
 
     /// Process interrupts
