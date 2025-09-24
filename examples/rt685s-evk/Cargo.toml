@@ -22,9 +22,7 @@ panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 
 embedded-hal-async = "1.0.0"
 embedded-io-async = "0.6.1"
-embassy-sync = { version = "0.7.2", features = [
-    "defmt",
-] }
+embassy-sync = { version = "0.7.2", features = ["defmt"] }
 embassy-executor = { version = "0.9.0", features = [
     "arch-cortex-m",
     "executor-thread",
@@ -32,13 +30,11 @@ embassy-executor = { version = "0.9.0", features = [
     "defmt",
 ] }
 embassy-futures = "0.1.2"
-embassy-time = { version = "0.4.0", features = [
+embassy-time = { version = "0.5.0", features = [
     "defmt",
     "defmt-timestamp-uptime",
 ] }
-embassy-embedded-hal = { version = "0.5.0", features = [
-    "defmt",
-] }
+embassy-embedded-hal = { version = "0.5.0", features = ["defmt"] }
 futures = { version = "0.3.30", default-features = false, features = [
     "async-await",
 ] }

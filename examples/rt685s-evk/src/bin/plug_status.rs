@@ -82,15 +82,6 @@ async fn main(spawner: Spawner) {
                 }
 
                 info!("P{}: connection state {:?}", i, status.connection_state());
-
-                let response = pd
-                    .execute_ucsi_command(&embedded_usb_pd::ucsi::lpm::Command {
-                        port,
-                        operation: embedded_usb_pd::ucsi::lpm::CommandData::GetConnectorStatus,
-                    })
-                    .await;
-
-                info!("P{}: UCSI response: {:?}", i, response);
             } else {
                 info!("P{}: plug removed", i);
             }

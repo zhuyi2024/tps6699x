@@ -503,7 +503,6 @@ checksum = "f820157f198ada183ad62e0a66f554c610cdcd1a9f27d4b316358103ced7a1f8"
 dependencies = [
  "cfg-if",
  "critical-section",
- "defmt 0.3.100",
  "document-features",
  "embassy-time-driver",
  "embedded-hal 0.2.7",
@@ -627,7 +626,7 @@ dependencies = [
 [[package]]
 name = "embedded-usb-pd"
 version = "0.1.0"
-source = "git+https://github.com/OpenDevicePartnership/embedded-usb-pd#b4c9aab43300ca45e8b827965de9f5be0122a054"
+source = "git+https://github.com/OpenDevicePartnership/embedded-usb-pd#98ca3abe6e5014aa63826a3e7ca4eb59ed2b059e"
 dependencies = [
  "aquamarine",
  "bincode",
@@ -1134,7 +1133,7 @@ dependencies = [
  "embassy-futures",
  "embassy-imxrt",
  "embassy-sync",
- "embassy-time 0.4.0",
+ "embassy-time 0.5.0",
  "embedded-hal-async",
  "embedded-io-async",
  "embedded-usb-pd",
