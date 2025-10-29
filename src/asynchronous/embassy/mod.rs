@@ -813,7 +813,7 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
                 let port_id = LocalPortId(port as u8);
 
                 if !interrupts_enabled[port] {
-                    trace!("Port{}: Interrupt for disabled", port);
+                    trace!("{:?}: Interrupt for disabled", port_id);
                     continue;
                 }
 
@@ -838,7 +838,7 @@ impl<'a, M: RawMutex, B: I2c> Interrupt<'a, M, B> {
                         }
                     },
                     Err(_) => {
-                        error!("Port{}: clear_interrupt timeout", port);
+                        error!("{:?}: clear_interrupt timeout", port_id);
                         continue;
                     }
                 }
