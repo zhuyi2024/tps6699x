@@ -6,7 +6,9 @@ use embedded_usb_pd::pdo::{self, sink, source, ExpectedPdo};
 use embedded_usb_pd::{Error, LocalPortId, PdError};
 
 use crate::registers::rx_caps::EPR_PDO_START_INDEX;
-use crate::{registers, DeviceError, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS};
+use crate::{
+    registers, warn, DeviceError, Mode, MAX_SUPPORTED_PORTS, PORT0, PORT1, TPS66993_NUM_PORTS, TPS66994_NUM_PORTS,
+};
 
 mod command;
 
@@ -73,8 +75,16 @@ impl<B: I2c> device_driver::AsyncRegisterInterface for Port<'_, B> {
 
         let len = buf[0] as usize;
         if len < data.len() {
-            PdError::InvalidParams.into()
-        } else if len == 0xff || len == 0 {
+            // Just log a warning to workaround registers that might not match the TRM documentation
+            warn!(
+                "Under-read from TPS6699x register {:#02x}: expected {} bytes, got {}",
+                address,
+                data.len(),
+                len
+            );
+        }
+
+        if len == 0xff || len == 0 {
             // Controller is busy and can't respond
             PdError::Busy.into()
         } else {
@@ -826,14 +836,8 @@ mod test {
         test_read_port::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
         test_write_port::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
         test_read_port_underread::<N>(tps6699x, port_id, expected_addr, reg, expected).await?;
-        if test_read_port_overread(tps6699x, port_id, expected_addr, reg, expected)
-            .await
-            .is_ok()
-        {
-            return Err(PdError::Failed.into());
-        }
-
-        Ok(())
+        // Over-reads should succeed
+        test_read_port_overread(tps6699x, port_id, expected_addr, reg, expected).await
     }
 
     async fn test_rw_ports(tps6699x: &mut Tps6699x<Mock>, port_id: LocalPortId, expected_addr: u8) {
