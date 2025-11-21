@@ -64,31 +64,6 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         Ok(ReturnValue::Success)
     }
 
-    async fn execute_set_uor(
-        &mut self,
-        port: LocalPortId,
-        args: &lpm::set_uor::Args,
-    ) -> Result<ReturnValue, Error<B::Error>> {
-        // Controller implementation is broken, manual implementation
-        if args.dfp() && args.ufp() {
-            // Cannot attempt to enter both DFP and UFP modes at the same time
-            error!("SET_UOR rejected: both UFP and DFP requested");
-            return Ok(ReturnValue::Rejected);
-        }
-
-        let mut port_control = self.get_port_control(port).await?;
-
-        port_control.set_initiate_swap_to_dfp(args.dfp());
-        port_control.set_initiate_swap_to_ufp(args.ufp());
-        port_control.set_process_swap_to_dfp(args.accept_swap());
-        port_control.set_process_swap_to_ufp(args.accept_swap());
-
-        self.set_port_control(port, port_control).await?;
-
-        // No output data for this command
-        Ok(ReturnValue::Success)
-    }
-
     pub async fn execute_ucsi_command(
         &mut self,
         command: &lpm::LocalCommand,
@@ -113,7 +88,6 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
             lpm::CommandData::GetAlternateModes(_) => {
                 self.execute_get_alternate_modes(port, &indata, &mut outdata).await?
             }
-            lpm::CommandData::SetUor(args) => self.execute_set_uor(port, &args).await?,
             lpm::CommandData::GetPdos(args) => self.execute_get_pdos(port, &args, &indata, &mut outdata).await?,
             _rest => {
                 self.execute_command(port, Command::Ucsi, Some(&indata), Some(&mut outdata))
