@@ -476,6 +476,16 @@ impl<'a, M: RawMutex, B: I2c> Tps6699x<'a, M, B> {
         inner.reset(delay, &Default::default()).await
     }
 
+    /// Execute the [`Command::DISC`] command to disconnect a port for a specified amount of time (in seconds).
+    pub async fn execute_disc(
+        &mut self,
+        port: LocalPortId,
+        disconnect_time_s: Option<u8>,
+    ) -> Result<ReturnValue, Error<B::Error>> {
+        let buf = [disconnect_time_s.unwrap_or(0)];
+        self.execute_command(port, Command::DISC, Some(&buf), None).await
+    }
+
     /// Get boot flags
     pub async fn get_boot_flags(&mut self) -> Result<registers::boot_flags::BootFlags, Error<B::Error>> {
         let mut inner = self.lock_inner().await;
