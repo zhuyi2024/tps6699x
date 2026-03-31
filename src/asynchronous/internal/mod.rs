@@ -568,6 +568,36 @@ impl<B: I2c> Tps6699x<B> {
             .await
     }
 
+    /// Get Sx App Config register (`0x20`).
+    ///
+    /// This register contains the current system power state.
+    pub async fn get_sx_app_config(
+        &mut self,
+        port: LocalPortId,
+    ) -> Result<registers::field_sets::SxAppConfig, Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .sx_app_config()
+            .read_async()
+            .await
+    }
+
+    /// Set Sx App Config register (`0x20`).
+    ///
+    /// Write the current system power state to the PD controller. A change in power state
+    /// triggers a new Application Configuration to be applied.
+    pub async fn set_sx_app_config(
+        &mut self,
+        port: LocalPortId,
+        state: registers::SystemPowerState,
+    ) -> Result<(), Error<B::Error>> {
+        self.borrow_port(port)?
+            .into_registers()
+            .sx_app_config()
+            .write_async(|config| config.set_sleep_state(state))
+            .await
+    }
+
     /// Get Rx ADO
     pub async fn get_rx_ado(&mut self, port: LocalPortId) -> Result<registers::field_sets::RxAdo, Error<B::Error>> {
         self.borrow_port(port)?.into_registers().rx_ado().read_async().await
