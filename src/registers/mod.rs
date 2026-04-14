@@ -1,8 +1,6 @@
-use device_driver;
 use embedded_usb_pd::type_c::ConnectionState;
 use embedded_usb_pd::{type_c, PdError};
 
-use crate::registers::field_sets::IntEventBus1;
 use crate::Mode;
 
 pub mod autonegotiate_sink;
@@ -13,10 +11,21 @@ pub mod rx_caps;
 pub mod rx_other_vdm;
 pub mod tx_identity;
 
-device_driver::create_device!(
-    device_name: Registers,
-    manifest: "device.yaml"
-);
+// Generated register definitions from device.yaml
+// Skip format checking for generated code
+#[rustfmt::skip]
+#[allow(clippy::unreachable)]
+#[allow(clippy::identity_op)]
+#[allow(clippy::erasing_op)]
+#[allow(clippy::unnecessary_cast)]
+#[allow(clippy::new_without_default)]
+#[allow(clippy::let_and_return)]
+#[allow(clippy::unnecessary_fallible_conversions)]
+#[allow(clippy::empty_docs)]
+#[allow(unused_imports)]
+#[allow(unreachable_patterns)]
+mod generated;
+pub use generated::*;
 
 /// Command data 1 register
 /// This register is 512 bits and exceeds the maximum support by device_driver
@@ -95,10 +104,10 @@ impl From<Mode> for &str {
     }
 }
 
-impl IntEventBus1 {
+impl field_sets::IntEventBus1 {
     /// Create an IntEventBus1 with all bits set to 1
     pub fn all() -> Self {
-        IntEventBus1::from([0xFF; 11])
+        field_sets::IntEventBus1::from([0xFF; 11])
     }
 }
 
